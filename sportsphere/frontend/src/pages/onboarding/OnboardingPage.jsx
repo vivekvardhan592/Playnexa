@@ -69,15 +69,15 @@ export default function OnboardingPage() {
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto glass-panel rounded-3xl p-6 sm:p-10 border border-slate-700/80 shadow-2xl space-y-6">
+    <div className="w-full glass-panel rounded-3xl p-6 sm:p-10 border border-slate-700/80 shadow-2xl space-y-8">
       
       {/* Progress Bar Header */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between text-xs font-mono font-bold text-slate-400">
+        <div className="flex items-center justify-between text-xs sm:text-sm font-mono font-bold text-slate-400">
           <span className="text-emerald-400">STEP {step} OF 5</span>
           <span>{step === 1 ? 'BASIC PROFILE' : step === 2 ? 'CHOOSE SPORTS' : step === 3 ? 'SKILL LEVELS' : step === 4 ? 'AVAILABILITY' : 'DISCOVERY RADIUS'}</span>
         </div>
-        <div className="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden">
+        <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
           <div
             className="h-full bg-gradient-to-r from-emerald-400 to-cyan-400 transition-all duration-300"
             style={{ width: `${(step / 5) * 100}%` }}
@@ -87,51 +87,51 @@ export default function OnboardingPage() {
 
       {/* Step 1: Basic Profile */}
       {step === 1 && (
-        <div className="space-y-5 animate-in fade-in duration-300">
-          <div className="space-y-1">
-            <h2 className="font-heading font-extrabold text-2xl text-white">Create Your Athlete Profile</h2>
-            <p className="text-xs text-slate-400">This is how other local athletes will discover you on SportSphere.</p>
+        <div className="space-y-6 animate-in fade-in duration-300">
+          <div className="space-y-1.5">
+            <h2 className="font-heading font-extrabold text-2xl sm:text-3xl text-white">Create Your Athlete Profile</h2>
+            <p className="text-xs sm:text-sm text-slate-400">This is how other local athletes will discover you on SportSphere.</p>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div>
-              <label className="block text-xs font-mono text-slate-300 mb-1">YOUR NAME</label>
+              <label className="block text-xs font-mono text-slate-300 mb-1.5">YOUR NAME</label>
               <input
                 type="text"
                 value={profile.name}
                 onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-emerald-400 focus:outline-none"
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:border-emerald-400 focus:outline-none"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-mono text-slate-300 mb-1">CITY</label>
+                <label className="block text-xs font-mono text-slate-300 mb-1.5">CITY</label>
                 <input
                   type="text"
                   value={profile.city}
                   onChange={(e) => setProfile({ ...profile, city: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-emerald-400 focus:outline-none"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:border-emerald-400 focus:outline-none"
                 />
               </div>
               <div>
-                <label className="block text-xs font-mono text-slate-300 mb-1">LOCAL AREA / NEIGHBORHOOD</label>
+                <label className="block text-xs font-mono text-slate-300 mb-1.5">LOCAL AREA / NEIGHBORHOOD</label>
                 <input
                   type="text"
                   value={profile.area}
                   onChange={(e) => setProfile({ ...profile, area: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-emerald-400 focus:outline-none"
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:border-emerald-400 focus:outline-none"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-mono text-slate-300 mb-1">SHORT BIO</label>
+              <label className="block text-xs font-mono text-slate-300 mb-1.5">SHORT BIO</label>
               <textarea
                 value={profile.bio}
                 onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
                 rows={3}
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-emerald-400 focus:outline-none resize-none"
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:border-emerald-400 focus:outline-none resize-none"
                 placeholder="Tell nearby players what sports you love..."
               />
             </div>
@@ -139,32 +139,32 @@ export default function OnboardingPage() {
         </div>
       )}
 
-      {/* Step 2: Choose Sports */}
+      {/* Step 2: Choose Sports — Spacious 3-Column Grid */}
       {step === 2 && (
-        <div className="space-y-5 animate-in fade-in duration-300">
-          <div className="space-y-1">
-            <h2 className="font-heading font-extrabold text-2xl text-white">Select Your Sports</h2>
-            <p className="text-xs text-slate-400">Represent all the sports you play in one unified profile.</p>
+        <div className="space-y-6 animate-in fade-in duration-300">
+          <div className="space-y-1.5">
+            <h2 className="font-heading font-extrabold text-2xl sm:text-3xl text-white">Select Your Sports</h2>
+            <p className="text-xs sm:text-sm text-slate-400">Represent all the sports you play in one unified profile.</p>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {SPORTS_LIST.map(({ sport, emoji }) => {
               const isSelected = selectedSports.includes(sport);
               return (
                 <div
                   key={sport}
                   onClick={() => toggleSport(sport)}
-                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between min-h-[56px] ${
                     isSelected
-                      ? 'bg-emerald-950/80 border-emerald-400 text-white shadow-lg shadow-emerald-500/10'
-                      : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-white'
+                      ? 'bg-emerald-950/80 border-emerald-400 text-white shadow-lg shadow-emerald-500/15'
+                      : 'bg-slate-900/70 border-slate-800 text-slate-300 hover:border-slate-700 hover:text-white'
                   }`}
                 >
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-xl">{emoji}</span>
-                    <span className="text-xs font-bold">{sport}</span>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-2xl shrink-0">{emoji}</span>
+                    <span className="text-sm font-bold truncate">{sport}</span>
                   </div>
-                  {isSelected && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
+                  {isSelected && <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 ml-1" />}
                 </div>
               );
             })}
@@ -172,35 +172,35 @@ export default function OnboardingPage() {
         </div>
       )}
 
-      {/* Step 3: Skill Levels */}
+      {/* Step 3: Skill Levels — Full-Width Card Options */}
       {step === 3 && (
-        <div className="space-y-5 animate-in fade-in duration-300">
-          <div className="space-y-1">
-            <h2 className="font-heading font-extrabold text-2xl text-white">Define Your Skill Levels</h2>
-            <p className="text-xs text-slate-400">SportSphere uses this to match you with compatible skill levels.</p>
+        <div className="space-y-6 animate-in fade-in duration-300">
+          <div className="space-y-1.5">
+            <h2 className="font-heading font-extrabold text-2xl sm:text-3xl text-white">Define Your Skill Levels</h2>
+            <p className="text-xs sm:text-sm text-slate-400">SportSphere uses this to match you with compatible skill levels.</p>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             {selectedSports.map((sport) => {
               const item = SPORTS_LIST.find((s) => s.sport === sport);
               return (
-                <div key={sport} className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-2">
-                  <div className="flex items-center gap-2 font-bold text-sm text-white">
-                    <span>{item?.emoji || '⚽'}</span>
+                <div key={sport} className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-3">
+                  <div className="flex items-center gap-2.5 font-bold text-base text-white">
+                    <span className="text-xl">{item?.emoji || '⚽'}</span>
                     <span>{sport}</span>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                     {SKILL_LEVELS.map((level) => {
                       const isCurrent = sportSkills[sport] === level;
                       return (
                         <button
                           key={level}
                           onClick={() => setSportSkills({ ...sportSkills, [sport]: level })}
-                          className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                          className={`py-3 px-3 rounded-xl text-xs sm:text-sm font-semibold border transition-all cursor-pointer text-center truncate ${
                             isCurrent
-                              ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-bold shadow'
-                              : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white'
+                              ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-extrabold shadow-md shadow-emerald-500/20'
+                              : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700'
                           }`}
                         >
                           {level}
@@ -217,16 +217,16 @@ export default function OnboardingPage() {
 
       {/* Step 4: Availability */}
       {step === 4 && (
-        <div className="space-y-5 animate-in fade-in duration-300">
-          <div className="space-y-1">
-            <h2 className="font-heading font-extrabold text-2xl text-white">When Do You Play?</h2>
-            <p className="text-xs text-slate-400">Help the Match Radar engine know when you are free.</p>
+        <div className="space-y-6 animate-in fade-in duration-300">
+          <div className="space-y-1.5">
+            <h2 className="font-heading font-extrabold text-2xl sm:text-3xl text-white">When Do You Play?</h2>
+            <p className="text-xs sm:text-sm text-slate-400">Help the Match Radar engine know when you are free.</p>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div>
-              <label className="block text-xs font-mono text-slate-300 mb-2">AVAILABLE DAYS</label>
-              <div className="flex flex-wrap gap-2">
+              <label className="block text-xs font-mono text-slate-300 mb-2.5">AVAILABLE DAYS</label>
+              <div className="flex flex-wrap gap-2.5">
                 {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => {
                   const active = availability.days.includes(day);
                   return (
@@ -236,13 +236,13 @@ export default function OnboardingPage() {
                         if (active) setAvailability({ ...availability, days: availability.days.filter((d) => d !== day) });
                         else setAvailability({ ...availability, days: [...availability.days, day] });
                       }}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold border transition-all cursor-pointer ${
                         active
-                          ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow'
-                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                          ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md shadow-cyan-500/20'
+                          : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white'
                       }`}
                     >
-                      {day.slice(0, 3)}
+                      {day}
                     </button>
                   );
                 })}
@@ -254,7 +254,7 @@ export default function OnboardingPage() {
               <select
                 value={availability.preferredTime}
                 onChange={(e) => setAvailability({ ...availability, preferredTime: e.target.value })}
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-emerald-400 focus:outline-none"
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-white focus:border-emerald-400 focus:outline-none"
               >
                 <option value="Early Mornings (6:00 AM – 9:00 AM)">Early Mornings (6:00 AM – 9:00 AM)</option>
                 <option value="Evenings (5:00 PM – 9:00 PM)">Evenings (5:00 PM – 9:00 PM)</option>
@@ -268,14 +268,14 @@ export default function OnboardingPage() {
 
       {/* Step 5: Discovery Radius */}
       {step === 5 && (
-        <div className="space-y-5 animate-in fade-in duration-300 text-center">
-          <div className="space-y-1">
-            <h2 className="font-heading font-extrabold text-2xl text-white">Match Radar Discovery Radius</h2>
-            <p className="text-xs text-slate-400">How far are you willing to travel for a game?</p>
+        <div className="space-y-6 animate-in fade-in duration-300 text-center">
+          <div className="space-y-1.5">
+            <h2 className="font-heading font-extrabold text-2xl sm:text-3xl text-white">Match Radar Discovery Radius</h2>
+            <p className="text-xs sm:text-sm text-slate-400">How far are you willing to travel for a game?</p>
           </div>
 
-          <div className="py-6 space-y-6">
-            <div className="text-4xl font-extrabold font-heading text-emerald-400">{radius} km</div>
+          <div className="py-6 space-y-6 max-w-md mx-auto">
+            <div className="text-5xl font-extrabold font-heading text-emerald-400">{radius} km</div>
             <input
               type="range"
               min="2"
@@ -283,28 +283,28 @@ export default function OnboardingPage() {
               step="1"
               value={radius}
               onChange={(e) => setRadius(Number(e.target.value))}
-              className="w-full h-2 bg-slate-900 rounded-lg appearance-none cursor-pointer accent-emerald-400"
+              className="w-full h-2.5 bg-slate-900 rounded-lg appearance-none cursor-pointer accent-emerald-400"
             />
             <div className="flex justify-between text-xs font-mono text-slate-400 px-2">
-              <span>2 km (Local neighborhood)</span>
-              <span>10 km (City radius)</span>
+              <span>2 km (Local)</span>
+              <span>10 km (City)</span>
               <span>25 km (Greater area)</span>
             </div>
           </div>
 
-          <div className="p-4 rounded-2xl bg-emerald-950/60 border border-emerald-800/80 text-xs text-emerald-300 flex items-center justify-center gap-2">
-            <Sparkles className="w-4 h-4 text-emerald-400 fill-emerald-400" />
+          <div className="p-4 rounded-2xl bg-emerald-950/60 border border-emerald-800/80 text-xs sm:text-sm text-emerald-300 flex items-center justify-center gap-2">
+            <Sparkles className="w-4 h-4 text-emerald-400 fill-emerald-400 shrink-0" />
             <span>Your SportSphere profile is ready to launch!</span>
           </div>
         </div>
       )}
 
       {/* Footer Navigation Buttons */}
-      <div className="flex items-center justify-between pt-4 border-t border-slate-800">
+      <div className="flex items-center justify-between pt-6 border-t border-slate-800">
         {step > 1 ? (
           <button
             onClick={() => setStep(step - 1)}
-            className="px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-300 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5"
+            className="px-5 py-3 rounded-xl bg-slate-900 border border-slate-800 text-xs sm:text-sm font-semibold text-slate-300 hover:text-white transition-colors cursor-pointer flex items-center gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Back</span>
@@ -313,7 +313,7 @@ export default function OnboardingPage() {
 
         <button
           onClick={handleNext}
-          className="px-7 py-3 rounded-xl bg-gradient-to-r from-emerald-400 to-cyan-400 text-slate-950 font-extrabold text-xs hover:opacity-95 shadow-lg shadow-emerald-500/25 transition-all cursor-pointer flex items-center gap-2 ml-auto"
+          className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-emerald-400 to-cyan-400 text-slate-950 font-extrabold text-xs sm:text-sm hover:opacity-95 shadow-lg shadow-emerald-500/25 transition-all cursor-pointer flex items-center gap-2 ml-auto"
         >
           <span>{step === 5 ? 'Launch SportSphere' : 'Next Step'}</span>
           <ArrowRight className="w-4 h-4 stroke-[3]" />

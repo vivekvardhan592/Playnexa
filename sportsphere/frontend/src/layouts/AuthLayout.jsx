@@ -4,7 +4,7 @@ import ThemeToggle from '../components/ui/ThemeToggle';
 
 export default function AuthLayout() {
   return (
-    <div className="min-h-screen bg-[#080a0f] text-slate-100 font-['Plus_Jakarta_Sans',sans-serif] flex flex-col justify-between relative overflow-hidden">
+    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] font-['Plus_Jakarta_Sans',sans-serif] flex flex-col justify-between relative overflow-hidden">
       
       {/* Background Animated Atmosphere */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-emerald-500/10 rounded-full blur-[150px] pointer-events-none -z-10" />
@@ -30,8 +30,8 @@ export default function AuthLayout() {
         </div>
       </header>
 
-      {/* Auth Form Card Outlet */}
-      <main className="flex-1 flex items-center justify-center px-4 py-8 z-10 w-full max-w-md mx-auto">
+      {/* Auth Form Card Outlet — Expanded Width for Spacious Layout */}
+      <main className="flex-1 flex items-center justify-center px-4 sm:px-6 py-8 z-10 w-full max-w-xl sm:max-w-2xl lg:max-w-3xl mx-auto">
         <Outlet />
       </main>
 
