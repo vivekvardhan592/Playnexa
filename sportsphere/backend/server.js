@@ -1,22 +1,53 @@
 import http from 'http';
+import { Server as SocketIOServer } from 'socket.io';
 import app from './src/app.js';
 import { env } from './src/config/env.js';
 import { connectPostgres, closePostgresPool } from './src/config/postgres.js';
+import { runChatMigrations } from './src/modules/chat/chat.migrations.js';
+import { registerSocketHandlers } from './src/modules/chat/chat.socket.js';
 
+// 1. Create HTTP server from Express app
 const server = http.createServer(app);
 
-// Connect PostgreSQL connection pool
-connectPostgres();
+// 2. Attach Socket.IO to the HTTP server
+const io = new SocketIOServer(server, {
+  cors: {
+    origin: env.FRONTEND_URL,
+    credentials: true,
+    methods: ['GET', 'POST'],
+  },
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  transports: ['websocket', 'polling'],
+});
+
+// 3. Register all Socket.IO event handlers
+registerSocketHandlers(io);
+
+// 4. Connect PostgreSQL and run boot-time migrations
+const bootstrap = async () => {
+  await connectPostgres();
+  await runChatMigrations();
+};
+
+bootstrap().catch((err) => {
+  console.error('[Bootstrap Error]:', err.message);
+});
 
 const PORT = env.PORT;
 
 server.listen(PORT, () => {
-  console.log(`🚀 [SportSphere Modular Monolith Server] Running on http://localhost:${PORT} (${env.NODE_ENV})`);
+  console.log(`🚀 [SportSphere Server] Running on http://localhost:${PORT} (${env.NODE_ENV})`);
+  console.log(`🔌 [Socket.IO] Real-time chat & presence active on ws://localhost:${PORT}`);
 });
 
-// Graceful Shutdown Handler
+// 5. Graceful Shutdown Handler
 const shutdownGracefully = (signal) => {
   console.log(`\n⚠️  [${signal}] Received. Initiating graceful shutdown...`);
+
+  io.close(() => {
+    console.log('✅ Socket.IO closed.');
+  });
 
   server.close(async () => {
     console.log('✅ HTTP server closed to new connections.');
@@ -30,7 +61,6 @@ const shutdownGracefully = (signal) => {
     }
   });
 
-  // Force close after 10 seconds timeout
   setTimeout(() => {
     console.error('⏱️ Graceful shutdown timed out. Forcing termination.');
     process.exit(1);

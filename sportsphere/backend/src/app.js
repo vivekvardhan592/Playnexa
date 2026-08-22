@@ -10,6 +10,7 @@ import authRoutes from './modules/auth/auth.routes.js';
 import athleteRoutes from './modules/athletes/athletes.routes.js';
 import discoveryRoutes from './modules/discovery/discovery.routes.js';
 import matchRoutes from './modules/matches/matches.routes.js';
+import chatRoutes from './modules/chat/chat.routes.js';
 
 const app = express();
 
@@ -68,7 +69,11 @@ app.use('/api/v1/discovery', discoveryRoutes);
 app.use('/api/v1/matches', matchRoutes);
 app.use('/api/matches', matchRoutes);
 
-// 11. Global Centralized Error Handler
+// 11. Phase 7 Chat REST Domain Routes
+app.use('/api/v1/chat', chatRoutes);
+app.use('/api/chat', chatRoutes);
+
+// 12. Global Centralized Error Handler
 app.use(errorHandler);
 
 export default app;
