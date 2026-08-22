@@ -18,9 +18,14 @@ export default function MatchDetailPage() {
       const data = await getMatchById(id || 'match_1');
       if (data) {
         setMatch(data);
+
         const userAthleteId = user?.athleteId || user?.id;
-        const joined = (data.participants || []).some(
-          (p) => p.athlete_id === userAthleteId || p.id === userAthleteId
+        const joined = Boolean(
+          userAthleteId &&
+          (data.participants || []).some((p) => {
+            const pid = p.athlete_id || p.id;
+            return pid && String(pid) === String(userAthleteId);
+          })
         );
         setHasJoined(joined);
       }
@@ -38,12 +43,13 @@ export default function MatchDetailPage() {
   }
 
   const userAthleteId = user?.athleteId || user?.id;
+  const creatorId = match.creator_id || match.creator?.id || match.creator?.athleteId;
+
+  // Strict creator check — only true if current user's ID strictly matches match creator ID
   const isCreator = Boolean(
     userAthleteId &&
-    (match.creator_id === userAthleteId ||
-     match.creator?.id === userAthleteId ||
-     match.creator?.athleteId === userAthleteId ||
-     match.creator_name === user?.name)
+    creatorId &&
+    String(creatorId) === String(userAthleteId)
   );
 
   const currentPlayers = match.current_players || match.currentPlayers || 1;
@@ -51,7 +57,7 @@ export default function MatchDetailPage() {
   const isFull = currentPlayers >= capacity;
 
   const handleJoinToggle = async () => {
-    if (isCreator) return; // Creator is host, no join/leave toggle
+    if (isCreator) return; // Host cannot join/leave own lobby
 
     setError('');
     setLoading(true);
@@ -163,11 +169,16 @@ export default function MatchDetailPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {(match.participants || []).map((p, idx) => {
-              const isHost = p.athlete_id === match.creator_id || idx === 0;
+              const pid = p.athlete_id || p.id;
+              // Strict Host check — only true if participant ID matches creatorId
+              const isHost = Boolean(
+                creatorId && pid && String(pid) === String(creatorId)
+              );
+
               return (
                 <div
-                  key={p.participant_id || p.athlete_id || p.id || idx}
-                  onClick={() => navigate(`/app/athlete/${p.athlete_id || p.id || 'rahul'}`)}
+                  key={p.participant_id || pid || idx}
+                  onClick={() => navigate(`/app/athlete/${pid || 'rahul'}`)}
                   className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-3 cursor-pointer hover:border-emerald-400 transition-colors"
                 >
                   <div className="flex items-center gap-3">
