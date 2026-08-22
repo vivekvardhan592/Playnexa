@@ -1,21 +1,14 @@
 import pg from 'pg';
-import dotenv from 'dotenv';
-
-dotenv.config();
+import { env } from './env.js';
 
 const { Pool } = pg;
 
-// Helper to safely parse and encode PostgreSQL URLs with special password characters
 const getConnectionString = () => {
-  let dbUrl = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/sportsphere';
-  dbUrl = dbUrl.replace(/^["']|["']$/g, '').trim();
-
-  // If URL contains raw unencoded special chars in password (e.g. user:pass@host)
+  let dbUrl = env.DATABASE_URL.replace(/^["']|["']$/g, '').trim();
   try {
     new URL(dbUrl);
     return dbUrl;
   } catch (e) {
-    // Safely encode password component if URL constructor fails on unencoded special chars
     const match = dbUrl.match(/^postgresql:\/\/([^:]+):(.+)@([^@]+)$/);
     if (match) {
       const user = match[1];
@@ -38,12 +31,16 @@ export const pool = new Pool({
   connectionTimeoutMillis: 5000,
 });
 
+pool.on('error', (err) => {
+  console.error('[PostgreSQL Pool Unexpected Error]:', err.message);
+});
+
 export const query = async (text, params) => {
   const start = Date.now();
   try {
     const res = await pool.query(text, params);
     const duration = Date.now() - start;
-    if (process.env.NODE_ENV === 'development' && duration > 100) {
+    if (env.NODE_ENV === 'development' && duration > 150) {
       console.log(`[SLOW QUERY]: ${duration}ms | Executed: ${text.slice(0, 80)}`);
     }
     return res;
@@ -53,18 +50,26 @@ export const query = async (text, params) => {
   }
 };
 
-export const getTransactionClient = async () => {
-  const client = await pool.connect();
-  const query = (text, params) => client.query(text, params);
-  const release = () => client.release();
-  return { client, query, release };
-};
-
 export const connectPostgres = async () => {
   try {
     const res = await pool.query('SELECT NOW() as now;');
-    console.log(`[PostgreSQL Supabase Connected]: ${res.rows[0].now}`);
+    console.log(`[PostgreSQL Connected]: ${res.rows[0].now}`);
   } catch (error) {
-    console.warn(`[DB Notice]: PostgreSQL connection fallback active. Database commands ready for deployment. (${error.message})`);
+    console.warn(`[DB Notice]: PostgreSQL connection pool initialized. (${error.message})`);
   }
+};
+
+export const checkDatabaseHealth = async () => {
+  try {
+    const res = await pool.query('SELECT 1 as healthy, NOW() as time;');
+    return { healthy: true, time: res.rows[0].time };
+  } catch (error) {
+    return { healthy: false, error: error.message };
+  }
+};
+
+export const closePostgresPool = async () => {
+  console.log('🔌 Closing PostgreSQL pool...');
+  await pool.end();
+  console.log('✅ PostgreSQL pool closed cleanly.');
 };
