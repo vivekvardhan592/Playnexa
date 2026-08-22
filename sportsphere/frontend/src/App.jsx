@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 // Layouts
 import AppLayout from './layouts/AppLayout';
@@ -92,38 +93,40 @@ function LandingPage() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public Landing Page */}
-          <Route path="/" element={<LandingPage />} />
+    <ThemeProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Public Landing Page */}
+            <Route path="/" element={<LandingPage />} />
 
-          {/* Authentication Routes */}
-          <Route path="/auth" element={<AuthLayout />}>
-            <Route path="login" element={<LoginPage />} />
-            <Route path="signup" element={<SignupPage />} />
-            <Route path="forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="onboarding" element={<OnboardingPage />} />
-          </Route>
+            {/* Authentication Routes */}
+            <Route path="/auth" element={<AuthLayout />}>
+              <Route path="login" element={<LoginPage />} />
+              <Route path="signup" element={<SignupPage />} />
+              <Route path="forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="onboarding" element={<OnboardingPage />} />
+            </Route>
 
-          {/* Authenticated Application Routes */}
-          <Route path="/app" element={<AppLayout />}>
-            <Route index element={<HomePage />} />
-            <Route path="discover" element={<DiscoverPage />} />
-            <Route path="radar" element={<MatchRadarPage />} />
-            <Route path="profile" element={<ProfilePage />} />
-            <Route path="athlete/:id" element={<AthleteProfilePage />} />
-            <Route path="create-match" element={<CreateMatchPage />} />
-            <Route path="matches" element={<DiscoverPage />} />
-            <Route path="matches/:id" element={<MatchDetailPage />} />
-            <Route path="messages" element={<MessagesPage />} />
-            <Route path="events" element={<EventsPage />} />
-            <Route path="community" element={<CommunityPage />} />
-            <Route path="notifications" element={<NotificationsPage />} />
-            <Route path="teams" element={<TeamsPage />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+            {/* Authenticated Application Routes */}
+            <Route path="/app" element={<AppLayout />}>
+              <Route index element={<HomePage />} />
+              <Route path="discover" element={<DiscoverPage />} />
+              <Route path="radar" element={<MatchRadarPage />} />
+              <Route path="profile" element={<ProfilePage />} />
+              <Route path="athlete/:id" element={<AthleteProfilePage />} />
+              <Route path="create-match" element={<CreateMatchPage />} />
+              <Route path="matches" element={<DiscoverPage />} />
+              <Route path="matches/:id" element={<MatchDetailPage />} />
+              <Route path="messages" element={<MessagesPage />} />
+              <Route path="events" element={<EventsPage />} />
+              <Route path="community" element={<CommunityPage />} />
+              <Route path="notifications" element={<NotificationsPage />} />
+              <Route path="teams" element={<TeamsPage />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

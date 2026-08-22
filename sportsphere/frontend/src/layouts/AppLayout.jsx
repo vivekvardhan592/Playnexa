@@ -2,6 +2,7 @@ import React from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/ui/Sidebar';
 import BottomNav from '../components/ui/BottomNav';
+import ThemeToggle from '../components/ui/ThemeToggle';
 import { useAuth } from '../contexts/AuthContext';
 import { Bell, Plus, Search, MapPin, Sparkles } from 'lucide-react';
 
@@ -45,8 +46,11 @@ export default function AppLayout() {
             </span>
           </div>
 
-          {/* Actions: Notifications + Create Match CTA + User Avatar */}
+          {/* Actions: Theme Toggle + Notifications + Create Match CTA + User Avatar */}
           <div className="flex items-center gap-3 ml-auto">
+            {/* Theme Toggle Button */}
+            <ThemeToggle />
+
             <button
               onClick={() => navigate('/app/create-match')}
               className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-400 to-cyan-400 hover:from-emerald-300 hover:to-cyan-300 text-slate-950 font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 transition-all cursor-pointer"

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Sparkles, Menu, X, Users, MapPin, Search } from 'lucide-react';
+import ThemeToggle from './ui/ThemeToggle';
 
 export default function Navbar({ onOpenMatchModal }) {
   const [scrolled, setScrolled] = useState(false);
@@ -75,6 +76,8 @@ export default function Navbar({ onOpenMatchModal }) {
               <span className="text-slate-400">Athletes near Hyderabad</span>
             </div>
 
+            <ThemeToggle />
+
             <button
               onClick={onOpenMatchModal}
               className="relative inline-flex items-center justify-center px-5 py-2.5 rounded-xl font-semibold text-sm text-slate-950 bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 hover:from-emerald-300 hover:to-cyan-300 shadow-lg shadow-emerald-500/25 transition-all duration-300 hover:scale-[1.02] active:scale-95 cursor-pointer"
@@ -126,9 +129,12 @@ export default function Navbar({ onOpenMatchModal }) {
           </nav>
           
           <div className="pt-4 border-t border-slate-800 flex flex-col gap-3">
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <MapPin className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Hyderabad Radius · 1,420 Active Players</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <MapPin className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Hyderabad Radius · 1,420 Active Players</span>
+              </div>
+              <ThemeToggle />
             </div>
             <button
               onClick={() => {

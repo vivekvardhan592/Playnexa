@@ -1,5 +1,6 @@
 import React from 'react';
 import { Outlet, Link } from 'react-router-dom';
+import ThemeToggle from '../components/ui/ThemeToggle';
 
 export default function AuthLayout() {
   return (
@@ -9,7 +10,7 @@ export default function AuthLayout() {
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-emerald-500/10 rounded-full blur-[150px] pointer-events-none -z-10" />
       <div className="absolute bottom-10 right-10 w-[400px] h-[400px] bg-cyan-500/10 rounded-full blur-[130px] pointer-events-none -z-10" />
 
-      {/* Header Logo */}
+      {/* Header Logo + Theme Toggle */}
       <header className="p-6 max-w-7xl mx-auto w-full flex items-center justify-between z-10">
         <Link to="/" className="flex items-center gap-3 group">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-cyan-500 p-0.5 shadow-lg shadow-emerald-500/20 group-hover:scale-105 transition-transform">
@@ -21,9 +22,12 @@ export default function AuthLayout() {
             Sport<span className="text-emerald-400">Sphere</span>
           </span>
         </Link>
-        <Link to="/" className="text-xs font-semibold text-slate-400 hover:text-emerald-400 transition-colors">
-          ← Back to Overview
-        </Link>
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          <Link to="/" className="text-xs font-semibold text-slate-400 hover:text-emerald-400 transition-colors">
+            ← Back to Overview
+          </Link>
+        </div>
       </header>
 
       {/* Auth Form Card Outlet */}
