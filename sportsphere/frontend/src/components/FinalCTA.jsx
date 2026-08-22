@@ -3,7 +3,7 @@ import { Sparkles, ArrowRight, ShieldCheck, Heart, MapPin, Users } from 'lucide-
 
 export default function FinalCTA({ onOpenMatchModal }) {
   return (
-    <footer className="relative bg-[#05070a] border-t border-slate-800/80 pt-12 pb-10 overflow-hidden">
+    <footer className="relative bg-[var(--bg-primary)] border-t border-slate-800/80 pt-12 pb-10 overflow-hidden">
       
       {/* Background Animated Ecosystem Particle Glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-gradient-to-b from-emerald-500/15 via-cyan-500/10 to-transparent rounded-full blur-[160px] pointer-events-none"></div>
@@ -17,7 +17,7 @@ export default function FinalCTA({ onOpenMatchModal }) {
           <div className="absolute -bottom-24 -left-24 w-96 h-96 rounded-full border border-cyan-500/20 animate-ping-slow pointer-events-none"></div>
 
           <div className="max-w-3xl mx-auto space-y-6 relative z-10">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-950/80 border border-emerald-500/30 text-emerald-400 text-xs font-semibold">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-950/80 text-emerald-400 text-xs font-semibold">
               <Sparkles className="w-4 h-4 text-emerald-400" />
               <span>Ready to Play?</span>
             </div>
@@ -54,7 +54,7 @@ export default function FinalCTA({ onOpenMatchModal }) {
         </div>
 
         {/* Footer Navigation & Credits */}
-        <div className="mt-20 pt-8 border-t border-slate-900 flex flex-col md:flex-row items-center justify-between gap-6 text-xs text-slate-400">
+        <div className="mt-20 pt-8 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6 text-xs text-slate-400">
           
           {/* Logo */}
           <div className="flex items-center gap-3">

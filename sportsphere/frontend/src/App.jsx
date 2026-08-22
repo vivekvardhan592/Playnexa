@@ -20,7 +20,6 @@ import CommunitySection from './components/CommunitySection';
 import FinalCTA from './components/FinalCTA';
 import MatchModal from './components/MatchModal';
 import ChatModal from './components/ChatModal';
-import LiveToast from './components/LiveToast';
 
 // Auth Pages
 import LoginPage from './pages/auth/LoginPage';
@@ -73,8 +72,6 @@ function LandingPage() {
         <CommunitySection onOpenChatModal={handleOpenChatModal} />
         <FinalCTA onOpenMatchModal={handlePrimaryMatchClick} />
       </main>
-
-      <LiveToast onOpenChatModal={handleOpenChatModal} />
 
       <MatchModal
         isOpen={isMatchModalOpen}

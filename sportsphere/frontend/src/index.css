@@ -216,7 +216,9 @@
 /* Background Overrides */
 [data-theme="light"] section,
 [data-theme="light"] main,
-[data-theme="light"] [class*="bg-[#080a0f]"] {
+[data-theme="light"] footer,
+[data-theme="light"] [class*="bg-[#080a0f]"],
+[data-theme="light"] [class*="bg-[#05070a]"] {
   background-color: var(--bg-primary) !important;
 }
 
