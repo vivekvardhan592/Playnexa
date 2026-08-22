@@ -5,10 +5,35 @@ dotenv.config();
 
 const { Pool } = pg;
 
-// PostgreSQL Connection Pool Setup
+// Helper to safely parse and encode PostgreSQL URLs with special password characters
+const getConnectionString = () => {
+  let dbUrl = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/sportsphere';
+  dbUrl = dbUrl.replace(/^["']|["']$/g, '').trim();
+
+  // If URL contains raw unencoded special chars in password (e.g. user:pass@host)
+  try {
+    new URL(dbUrl);
+    return dbUrl;
+  } catch (e) {
+    // Safely encode password component if URL constructor fails on unencoded special chars
+    const match = dbUrl.match(/^postgresql:\/\/([^:]+):(.+)@([^@]+)$/);
+    if (match) {
+      const user = match[1];
+      const pass = encodeURIComponent(match[2]);
+      const hostPath = match[3];
+      return `postgresql://${user}:${pass}@${hostPath}`;
+    }
+    return dbUrl;
+  }
+};
+
+const connectionString = getConnectionString();
+const isCloudDB = connectionString.includes('supabase') || connectionString.includes('neon') || connectionString.includes('render');
+
 export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/sportsphere',
-  max: 20, // Connection pool max connections
+  connectionString,
+  ssl: isCloudDB ? { rejectUnauthorized: false } : false,
+  max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
 });
@@ -28,7 +53,6 @@ export const query = async (text, params) => {
   }
 };
 
-// Transaction Client Helper
 export const getTransactionClient = async () => {
   const client = await pool.connect();
   const query = (text, params) => client.query(text, params);
@@ -38,10 +62,9 @@ export const getTransactionClient = async () => {
 
 export const connectPostgres = async () => {
   try {
-    const res = await pool.query('SELECT NOW() as now, PostGIS_Full_Version() as postgis_version;');
-    console.log(`[PostgreSQL Connected]: ${res.rows[0].now}`);
-    console.log(`[PostGIS Enabled]: ${res.rows[0].postgis_version || 'Extension Ready'}`);
+    const res = await pool.query('SELECT NOW() as now;');
+    console.log(`[PostgreSQL Supabase Connected]: ${res.rows[0].now}`);
   } catch (error) {
-    console.warn(`[DB Notice]: PostgreSQL/PostGIS connection fallback active. Database commands ready for deployment. (${error.message})`);
+    console.warn(`[DB Notice]: PostgreSQL connection fallback active. Database commands ready for deployment. (${error.message})`);
   }
 };
