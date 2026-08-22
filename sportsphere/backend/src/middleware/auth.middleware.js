@@ -1,44 +1,45 @@
 import jwt from 'jsonwebtoken';
-import { logSecurityEvent } from '../utils/logger.js';
+import { env } from '../config/env.js';
 
 export const requireAuth = (req, res, next) => {
-  let token;
+  let token = req.cookies?.sportsphere_access_token;
 
-  // 1. Read token from secure HttpOnly cookie
-  if (req.cookies && req.cookies.sportsphere_access_token) {
-    token = req.cookies.sportsphere_access_token;
-  } 
-  // 2. Fallback to Authorization: Bearer <token>
-  else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    token = req.headers.authorization.split(' ')[1];
+  if (!token && req.headers.authorization) {
+    const authHeader = req.headers.authorization;
+    if (authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    }
   }
 
   if (!token) {
-    logSecurityEvent('UNAUTHENTICATED_ACCESS_ATTEMPT', 'ANONYMOUS', { path: req.originalUrl }, req);
     return res.status(401).json({
       success: false,
-      message: 'Authentication required. No token provided.',
+      error: {
+        code: 'UNAUTHENTICATED',
+        message: 'Authentication required. Please log in.',
+        requestId: req.requestId,
+      },
     });
   }
 
   try {
-    const secret = process.env.JWT_SECRET || 'sportsphere_ultra_secure_jwt_secret_2026_key';
-    const decoded = jwt.verify(token, secret);
-
-    // Attach minimal safe identity
+    const decoded = jwt.verify(token, env.JWT_SECRET);
     req.user = {
-      id: decoded.sub || decoded.id || 'user_1',
+      id: decoded.sub,
+      athleteId: decoded.athleteId,
       email: decoded.email,
-      role: decoded.role || 'USER',
-      name: decoded.name || 'Vivek Kumar',
+      role: decoded.role || 'ATHLETE',
+      name: decoded.name,
     };
-
-    return next();
-  } catch (error) {
-    logSecurityEvent('INVALID_TOKEN_ATTEMPT', 'ANONYMOUS', { path: req.originalUrl, error: error.message }, req);
+    next();
+  } catch (err) {
     return res.status(401).json({
       success: false,
-      message: 'Authentication failed. Invalid or expired token.',
+      error: {
+        code: 'INVALID_TOKEN',
+        message: 'Invalid or expired authentication session token.',
+        requestId: req.requestId,
+      },
     });
   }
 };

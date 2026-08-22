@@ -6,6 +6,7 @@ import { env } from './config/env.js';
 import { requestIdMiddleware } from './middleware/requestId.middleware.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import healthRoutes from './routes/healthRoutes.js';
+import authRoutes from './modules/auth/auth.routes.js';
 
 const app = express();
 
@@ -49,7 +50,11 @@ app.use((req, res, next) => {
 app.use('/', healthRoutes);
 app.use('/api', healthRoutes);
 
-// 7. Global Centralized Error Handler
+// 7. Phase 3 Authentication Domain Routes
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/auth', authRoutes);
+
+// 8. Global Centralized Error Handler
 app.use(errorHandler);
 
 export default app;

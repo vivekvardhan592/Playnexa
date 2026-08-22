@@ -1,23 +1,20 @@
-import { logSecurityEvent } from '../utils/logger.js';
-
-// RBAC Middleware — Role-based authorization
 export const requireRole = (...allowedRoles) => {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ success: false, message: 'Authentication required' });
+      return res.status(401).json({
+        success: false,
+        error: { code: 'UNAUTHENTICATED', message: 'Authentication required.', requestId: req.requestId },
+      });
     }
 
     if (!allowedRoles.includes(req.user.role)) {
-      logSecurityEvent(
-        'UNAUTHORIZED_ROLE_ACCESS',
-        req.user.id,
-        { requiredRoles: allowedRoles, userRole: req.user.role, path: req.originalUrl },
-        req
-      );
-
       return res.status(403).json({
         success: false,
-        message: 'Access forbidden. Insufficient privileges.',
+        error: {
+          code: 'FORBIDDEN_ROLE',
+          message: `Access denied. Requires one of roles: [${allowedRoles.join(', ')}]`,
+          requestId: req.requestId,
+        },
       });
     }
 
@@ -25,36 +22,29 @@ export const requireRole = (...allowedRoles) => {
   };
 };
 
-// IDOR / BOLA Protection Middleware — Verifies resource ownership before modification
-export const requireResourceOwner = (getOwnerIdFromResource) => {
-  return async (req, res, next) => {
+export const requireResourceOwner = (getOwnerIdFn) => {
+  return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ success: false, message: 'Authentication required' });
-    }
-
-    // Admins bypass ownership checks for moderation
-    if (req.user.role === 'ADMIN') return next();
-
-    const ownerId = await getOwnerIdFromResource(req);
-
-    if (!ownerId) {
-      return res.status(404).json({ success: false, message: 'Resource not found' });
-    }
-
-    if (String(ownerId) !== String(req.user.id)) {
-      logSecurityEvent(
-        'IDOR_ATTEMPT_BLOCKED',
-        req.user.id,
-        { targetResourceOwner: ownerId, path: req.originalUrl },
-        req
-      );
-
-      return res.status(403).json({
+      return res.status(401).json({
         success: false,
-        message: 'Forbidden. You do not own or control this resource.',
+        error: { code: 'UNAUTHENTICATED', message: 'Authentication required.', requestId: req.requestId },
       });
     }
 
-    next();
+    const resourceOwnerId = getOwnerIdFn(req);
+
+    // Admin bypass or strict owner check
+    if (req.user.role === 'ADMIN' || req.user.id === resourceOwnerId || req.user.athleteId === resourceOwnerId) {
+      return next();
+    }
+
+    return res.status(403).json({
+      success: false,
+      error: {
+        code: 'FORBIDDEN_RESOURCE_OWNER',
+        message: 'Forbidden. You are not authorized to access or modify this resource.',
+        requestId: req.requestId,
+      },
+    });
   };
 };

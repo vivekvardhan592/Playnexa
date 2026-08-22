@@ -50,6 +50,13 @@ export const query = async (text, params) => {
   }
 };
 
+export const getTransactionClient = async () => {
+  const client = await pool.connect();
+  const query = (text, params) => client.query(text, params);
+  const release = () => client.release();
+  return { client, query, release };
+};
+
 export const connectPostgres = async () => {
   try {
     const res = await pool.query('SELECT NOW() as now;');
