@@ -194,8 +194,6 @@ export async function getMessageHistory(conversationId, { limit = 50, before = n
 }
 
 export async function sendMessage(convId, text) {
-  // Messages are sent via Socket.IO for real-time delivery.
-  // This REST fallback persists directly if socket is unavailable.
   const apiData = await fetchAPI('/chat/send', {
     method: 'POST',
     body: JSON.stringify({ text, receiverName: 'Rahul S.', sport: 'Badminton' }),
@@ -214,7 +212,7 @@ export async function sendMessage(convId, text) {
 
 // === Events Services ===
 export async function getEvents() {
-  const apiData = await fetchAPI('/events');
+  const apiData = await fetchAPI('/v1/events');
   if (apiData && apiData.events) return apiData.events;
   return [...EVENTS];
 }
@@ -225,17 +223,30 @@ export async function getEventById(id) {
 
 // === Teams Services ===
 export async function getTeams() {
+  const apiData = await fetchAPI('/v1/teams');
+  if (apiData && apiData.teams) return apiData.teams;
   return [...TEAMS];
 }
 
 // === Community Services ===
 export async function getCommunityPosts() {
-  const apiData = await fetchAPI('/community/feed');
+  const apiData = await fetchAPI('/v1/community/feed');
   if (apiData && apiData.posts) return apiData.posts;
   return [...POSTS];
 }
 
+export async function createCommunityPost(content) {
+  const apiData = await fetchAPI('/v1/community/posts', {
+    method: 'POST',
+    body: JSON.stringify({ content }),
+  });
+  if (apiData && apiData.post) return apiData.post;
+  return null;
+}
+
 // === Notifications Services ===
 export async function getNotifications() {
+  const apiData = await fetchAPI('/v1/notifications');
+  if (apiData && apiData.notifications) return apiData.notifications;
   return [...NOTIFICATIONS];
 }
