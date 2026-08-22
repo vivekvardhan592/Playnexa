@@ -11,6 +11,10 @@ import athleteRoutes from './modules/athletes/athletes.routes.js';
 import discoveryRoutes from './modules/discovery/discovery.routes.js';
 import matchRoutes from './modules/matches/matches.routes.js';
 import chatRoutes from './modules/chat/chat.routes.js';
+import eventsRoutes from './modules/events/events.routes.js';
+import communityRoutes from './modules/community/community.routes.js';
+import teamsRoutes from './modules/teams/teams.routes.js';
+import notificationsRoutes from './modules/notifications/notifications.routes.js';
 
 const app = express();
 
@@ -73,7 +77,20 @@ app.use('/api/matches', matchRoutes);
 app.use('/api/v1/chat', chatRoutes);
 app.use('/api/chat', chatRoutes);
 
-// 12. Global Centralized Error Handler
+// 12. Events, Community, Teams, Notifications Routes
+app.use('/api/v1/events', eventsRoutes);
+app.use('/api/events', eventsRoutes);
+
+app.use('/api/v1/community', communityRoutes);
+app.use('/api/community', communityRoutes);
+
+app.use('/api/v1/teams', teamsRoutes);
+app.use('/api/teams', teamsRoutes);
+
+app.use('/api/v1/notifications', notificationsRoutes);
+app.use('/api/notifications', notificationsRoutes);
+
+// 13. Global Centralized Error Handler
 app.use(errorHandler);
 
 export default app;
