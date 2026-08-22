@@ -1,33 +1,93 @@
-import React, { useState, useEffect } from 'react';
-import { getConversations, sendMessage } from '../../services/api';
-import { subscribeToMessages, sendSocketMessage } from '../../services/socket';
+import React, { useState, useEffect, useRef } from 'react';
+import { getConversations, getMessageHistory } from '../../services/api';
+import {
+  subscribeToMessages,
+  sendSocketMessage,
+  joinConversation,
+  leaveConversation,
+  emitTyping,
+  subscribeToTyping,
+} from '../../services/socket';
+import { useAuth } from '../../contexts/AuthContext';
 import { Send, Sparkles, CheckCircle2, MessageSquare, Phone, Video } from 'lucide-react';
 
 export default function MessagesPage() {
+  const { user } = useAuth();
   const [conversations, setConversations] = useState([]);
-  const [activeConvId, setActiveConvId] = useState('conv_rahul');
+  const [activeConvId, setActiveConvId] = useState(null);
+  const [messages, setMessages] = useState([]);
   const [inputMsg, setInputMsg] = useState('');
+  const [typingInfo, setTypingInfo] = useState(null);
+  const messagesEndRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
 
+  // Load conversation list
   useEffect(() => {
     async function loadConversations() {
       const data = await getConversations();
       setConversations(data);
+      // Auto-select first conversation
+      if (data.length > 0 && !activeConvId) {
+        setActiveConvId(data[0].conversation_id || data[0].id);
+      }
     }
     loadConversations();
+  }, []);
 
-    // Subscribe to incoming real-time Socket.IO messages
-    const unsubscribe = subscribeToMessages((data) => {
-      setConversations((prevConvs) =>
-        prevConvs.map((conv) => {
-          if (conv.id === 'conv_rahul') {
+  // Join/leave Socket.IO rooms when active conversation changes
+  useEffect(() => {
+    if (!activeConvId) return;
+
+    joinConversation(activeConvId);
+
+    // Load message history from backend
+    async function loadMessages() {
+      const msgs = await getMessageHistory(activeConvId);
+      setMessages(
+        msgs.map((m) => ({
+          id: m.id,
+          sender: m.sender_name || m.senderName,
+          text: m.content,
+          time: new Date(m.created_at || m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isOwn: m.sender_id === user?.id || m.senderId === user?.id || m.sender_id === user?.athleteId,
+        }))
+      );
+    }
+    loadMessages();
+
+    return () => {
+      leaveConversation(activeConvId);
+    };
+  }, [activeConvId, user]);
+
+  // Subscribe to real-time incoming messages
+  useEffect(() => {
+    const unsub = subscribeToMessages((data) => {
+      if (data.conversationId === activeConvId) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: data.id,
+            sender: data.senderName,
+            text: data.content,
+            time: new Date(data.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            isOwn: data.senderId === user?.id || data.senderId === user?.athleteId,
+          },
+        ]);
+      }
+
+      // Update conversation list last message
+      setConversations((prev) =>
+        prev.map((conv) => {
+          const convId = conv.conversation_id || conv.id;
+          if (convId === data.conversationId) {
             return {
               ...conv,
-              messages: [
-                ...conv.messages,
-                { id: Date.now(), sender: data.senderName || 'Rahul S.', text: data.text, time: 'Just now', isOwn: false },
-              ],
-              lastMessage: data.text,
+              last_message: data.content,
+              lastMessage: data.content,
+              last_message_at: data.createdAt,
               timestamp: 'Just now',
+              unread_count: convId === activeConvId ? 0 : (parseInt(conv.unread_count || 0) + 1),
             };
           }
           return conv;
@@ -35,35 +95,89 @@ export default function MessagesPage() {
       );
     });
 
-    return () => unsubscribe();
-  }, []);
+    return () => unsub();
+  }, [activeConvId, user]);
 
-  const activeConv = conversations.find((c) => c.id === activeConvId) || conversations[0];
+  // Subscribe to typing indicators
+  useEffect(() => {
+    const unsub = subscribeToTyping((data) => {
+      if (data.conversationId === activeConvId && data.isTyping) {
+        setTypingInfo(data.name);
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = setTimeout(() => setTypingInfo(null), 3000);
+      } else {
+        setTypingInfo(null);
+      }
+    });
+    return () => unsub();
+  }, [activeConvId]);
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const activeConv = conversations.find(
+    (c) => (c.conversation_id || c.id) === activeConvId
+  ) || conversations[0];
 
   const handleSend = async (e) => {
     e.preventDefault();
-    if (!inputMsg.trim() || !activeConv) return;
+    if (!inputMsg.trim() || !activeConvId) return;
 
     const text = inputMsg.trim();
     setInputMsg('');
 
-    // Emit live Socket.IO message event
-    sendSocketMessage({
-      senderName: 'Vivek Kumar',
-      receiverName: activeConv.athlete?.name || 'Rahul S.',
-      sport: 'Badminton',
-      text,
-    });
+    // Optimistic UI update
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: `temp_${Date.now()}`,
+        sender: user?.name || 'You',
+        text,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isOwn: true,
+      },
+    ]);
 
-    // Save message via REST API
-    const newMsg = await sendMessage(activeConv.id, text);
-    if (newMsg) {
-      setConversations([...conversations]);
-    }
+    // Send via Socket.IO (persisted by backend)
+    sendSocketMessage(activeConvId, text);
+
+    // Stop typing indicator
+    emitTyping(activeConvId, false);
+  };
+
+  const handleInputChange = (e) => {
+    setInputMsg(e.target.value);
+    if (activeConvId) emitTyping(activeConvId, true);
+    clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      if (activeConvId) emitTyping(activeConvId, false);
+    }, 2000);
   };
 
   const handleQuickChip = (chipText) => {
     setInputMsg(chipText);
+  };
+
+  // Helper to get display info from conversation (supports both mock and real backend shapes)
+  const getConvDisplay = (conv) => {
+    if (conv.athlete) {
+      return {
+        name: conv.athlete.name,
+        avatar: conv.athlete.avatar,
+        isOnline: conv.athlete.isOnline,
+        verified: conv.athlete.verified,
+        sport: conv.athlete.sports?.[0]?.sport || 'Badminton',
+      };
+    }
+    return {
+      name: conv.other_name || 'Athlete',
+      avatar: conv.other_avatar || '/athlete_rahul.jpg',
+      isOnline: false,
+      verified: false,
+      sport: 'Badminton',
+    };
   };
 
   return (
@@ -74,18 +188,22 @@ export default function MessagesPage() {
         <div className="p-4 border-b border-slate-800 flex items-center justify-between">
           <h2 className="font-heading font-extrabold text-lg text-white">Direct Messages</h2>
           <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">
-            SOCKET CONNECTED
+            LIVE
           </span>
         </div>
 
         {/* Conversation List */}
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
           {conversations.map((conv) => {
-            const isActive = conv.id === activeConvId;
+            const convId = conv.conversation_id || conv.id;
+            const isActive = convId === activeConvId;
+            const display = getConvDisplay(conv);
+            const unread = parseInt(conv.unread_count || conv.unreadCount || 0);
+
             return (
               <div
-                key={conv.id}
-                onClick={() => setActiveConvId(conv.id)}
+                key={convId}
+                onClick={() => setActiveConvId(convId)}
                 className={`p-3 rounded-2xl flex items-center gap-3 transition-all cursor-pointer ${
                   isActive
                     ? 'bg-emerald-500/10 border border-emerald-500/30'
@@ -94,31 +212,42 @@ export default function MessagesPage() {
               >
                 <div className="relative shrink-0">
                   <img
-                    src={conv.athlete.avatar}
-                    alt={conv.athlete.name}
+                    src={display.avatar}
+                    alt={display.name}
                     className="w-11 h-11 rounded-xl object-cover border border-slate-700"
                   />
-                  {conv.athlete.isOnline && (
+                  {display.isOnline && (
                     <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-slate-950" />
                   )}
                 </div>
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-xs text-white truncate">{conv.athlete.name}</span>
-                    <span className="text-[10px] font-mono text-slate-400">{conv.timestamp}</span>
+                    <span className="font-bold text-xs text-white truncate">{display.name}</span>
+                    <span className="text-[10px] font-mono text-slate-400">
+                      {conv.timestamp || (conv.last_message_at ? new Date(conv.last_message_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '')}
+                    </span>
                   </div>
-                  <div className="text-[11px] text-slate-400 truncate mt-0.5">{conv.lastMessage}</div>
+                  <div className="text-[11px] text-slate-400 truncate mt-0.5">
+                    {conv.last_message || conv.lastMessage || 'No messages yet'}
+                  </div>
                 </div>
 
-                {conv.unreadCount > 0 && (
+                {unread > 0 && (
                   <span className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 font-bold text-[10px] flex items-center justify-center shrink-0">
-                    {conv.unreadCount}
+                    {unread}
                   </span>
                 )}
               </div>
             );
           })}
+
+          {conversations.length === 0 && (
+            <div className="p-6 text-center text-slate-500 text-xs">
+              <MessageSquare className="w-8 h-8 mx-auto mb-2 text-slate-600" />
+              No conversations yet. Discover athletes and start chatting!
+            </div>
+          )}
         </div>
       </div>
 
@@ -130,17 +259,19 @@ export default function MessagesPage() {
           <div className="p-4 border-b border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <img
-                src={activeConv.athlete.avatar}
-                alt={activeConv.athlete.name}
+                src={getConvDisplay(activeConv).avatar}
+                alt={getConvDisplay(activeConv).name}
                 className="w-10 h-10 rounded-xl object-cover border border-slate-700"
               />
               <div>
                 <div className="flex items-center gap-1.5">
-                  <h3 className="font-heading font-bold text-sm text-white">{activeConv.athlete.fullName || activeConv.athlete.name}</h3>
-                  {activeConv.athlete.verified && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400/20" />}
+                  <h3 className="font-heading font-bold text-sm text-white">
+                    {getConvDisplay(activeConv).name}
+                  </h3>
+                  {getConvDisplay(activeConv).verified && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400/20" />}
                 </div>
                 <div className="text-[11px] text-emerald-400 font-mono">
-                  {activeConv.athlete.sports?.[0]?.sport || 'Badminton'} • {activeConv.athlete.isOnline ? 'Online Now' : 'Offline'}
+                  {getConvDisplay(activeConv).sport} • {typingInfo ? `${typingInfo} is typing...` : (getConvDisplay(activeConv).isOnline ? 'Online Now' : 'Offline')}
                 </div>
               </div>
             </div>
@@ -157,7 +288,7 @@ export default function MessagesPage() {
 
           {/* Messages Thread Container */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {activeConv.messages.map((msg) => (
+            {messages.map((msg) => (
               <div
                 key={msg.id}
                 className={`flex ${msg.isOwn ? 'justify-end' : 'justify-start'}`}
@@ -176,6 +307,16 @@ export default function MessagesPage() {
                 </div>
               </div>
             ))}
+
+            {typingInfo && (
+              <div className="flex justify-start">
+                <div className="px-4 py-2 rounded-2xl bg-slate-900 border border-slate-800 text-slate-400 text-xs rounded-bl-none animate-pulse">
+                  {typingInfo} is typing...
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
           </div>
 
           {/* Quick Reply Chips */}
@@ -197,8 +338,8 @@ export default function MessagesPage() {
             <input
               type="text"
               value={inputMsg}
-              onChange={(e) => setInputMsg(e.target.value)}
-              placeholder={`Message ${activeConv.athlete.name}...`}
+              onChange={handleInputChange}
+              placeholder={`Message ${getConvDisplay(activeConv).name}...`}
               className="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-xs text-white focus:border-emerald-400 focus:outline-none"
             />
             <button

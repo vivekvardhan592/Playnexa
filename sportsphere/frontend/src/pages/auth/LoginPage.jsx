@@ -6,14 +6,24 @@ import { Sparkles, ArrowRight, Mail, Lock } from 'lucide-react';
 export default function LoginPage() {
   const [email, setEmail] = useState('vivek@sportsphere.com');
   const [password, setPassword] = useState('password123');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const { login, demoLogin } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    login(email, password);
-    navigate('/app');
+    setError('');
+    setLoading(true);
+    try {
+      await login(email, password);
+      navigate('/app');
+    } catch (err) {
+      setError(err.message || 'Login failed. Please check your credentials.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDemoAccess = () => {
@@ -53,6 +63,11 @@ export default function LoginPage() {
       </div>
 
       {/* Login Form */}
+      {error && (
+        <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-medium">
+          {error}
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-xs font-mono text-slate-300 mb-1.5">EMAIL ADDRESS</label>

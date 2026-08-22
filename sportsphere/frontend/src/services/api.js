@@ -14,16 +14,26 @@ async function fetchAPI(endpoint, options = {}) {
       credentials: 'include', // Send & receive HttpOnly authentication cookies
     });
 
-    if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
     const json = await res.json();
+
+    if (!res.ok) {
+      const error = new Error(json?.error?.message || json?.message || `HTTP Error ${res.status}`);
+      error.statusCode = res.status;
+      error.code = json?.error?.code;
+      throw error;
+    }
+
     return json.data || json;
   } catch (error) {
+    // Re-throw errors with statusCode (real backend errors)
+    if (error.statusCode) throw error;
+    // Network errors — fall through to mock data
     console.warn(`[API Notice]: Endpoint ${endpoint} fallback active (${error.message})`);
     return null;
   }
 }
 
-// --- Auth Services ---
+// === Auth Services ===
 export async function apiLogin(email, password) {
   const result = await fetchAPI('/auth/login', {
     method: 'POST',
@@ -64,12 +74,20 @@ export async function apiGetProfile() {
   return await fetchAPI('/auth/profile');
 }
 
-// --- Athletes Services ---
+// === Discovery Services (Phase 5 Backend) ===
 export async function getAthletes(filters = {}) {
-  const query = new URLSearchParams(filters).toString();
-  const apiData = await fetchAPI(`/athletes/nearby?${query}`);
+  const params = new URLSearchParams();
+  if (filters.sport && filters.sport !== 'All') params.set('sport', filters.sport);
+  if (filters.skill && filters.skill !== 'All') params.set('skill', filters.skill);
+  if (filters.longitude) params.set('longitude', filters.longitude);
+  if (filters.latitude) params.set('latitude', filters.latitude);
+  if (filters.radiusKm || filters.maxDistance) params.set('radiusKm', filters.radiusKm || filters.maxDistance || 10);
+  if (filters.limit) params.set('limit', filters.limit);
+
+  const apiData = await fetchAPI(`/v1/discovery/athletes?${params.toString()}`);
   if (apiData && apiData.athletes) return apiData.athletes;
 
+  // Fallback to mock data
   let results = [...ATHLETES];
   if (filters.sport && filters.sport !== 'All') results = results.filter((a) => a.sports.some((s) => s.sport === filters.sport));
   if (filters.skill && filters.skill !== 'All') results = results.filter((a) => a.sports.some((s) => s.skillLevel === filters.skill));
@@ -79,35 +97,43 @@ export async function getAthletes(filters = {}) {
 }
 
 export async function getAthleteById(id) {
-  const apiData = await fetchAPI(`/athletes/${id}`);
+  const apiData = await fetchAPI(`/v1/athletes/${id}`);
   if (apiData) return apiData;
   return ATHLETES.find((a) => a.id === id) || ATHLETES[0];
 }
 
-// --- Matches Services ---
+// === Matches Services (Phase 6 Backend) ===
 export async function getMatches(filters = {}) {
-  const query = new URLSearchParams(filters).toString();
-  const apiData = await fetchAPI(`/matches/radar?${query}`);
+  const params = new URLSearchParams();
+  if (filters.sport && filters.sport !== 'All') params.set('sport', filters.sport);
+  if (filters.longitude) params.set('longitude', filters.longitude);
+  if (filters.latitude) params.set('latitude', filters.latitude);
+  if (filters.radiusKm) params.set('radiusKm', filters.radiusKm);
+  if (filters.status) params.set('status', filters.status);
+
+  const apiData = await fetchAPI(`/v1/matches/radar?${params.toString()}`);
   if (apiData && apiData.matches) return apiData.matches;
 
+  // Fallback to mock
   let results = [...MATCHES];
   if (filters.sport && filters.sport !== 'All') results = results.filter((m) => m.sport === filters.sport);
   return results;
 }
 
 export async function getMatchById(id) {
-  const apiData = await fetchAPI(`/matches/${id}`);
-  if (apiData) return apiData;
+  const apiData = await fetchAPI(`/v1/matches/${id}`);
+  if (apiData && apiData.match) return apiData.match;
   return MATCHES.find((m) => m.id === id) || MATCHES[0];
 }
 
 export async function createMatch(data) {
-  const apiData = await fetchAPI('/matches/create', {
+  const apiData = await fetchAPI('/v1/matches/create', {
     method: 'POST',
     body: JSON.stringify(data),
   });
   if (apiData && apiData.match) return apiData.match;
 
+  // Fallback mock
   const newMatch = {
     id: `match_${Date.now()}`,
     ...data,
@@ -121,9 +147,10 @@ export async function createMatch(data) {
 }
 
 export async function joinMatch(matchId) {
-  const apiData = await fetchAPI(`/matches/${matchId}/join`, { method: 'POST' });
+  const apiData = await fetchAPI(`/v1/matches/${matchId}/join`, { method: 'POST' });
   if (apiData && apiData.match) return apiData.match;
 
+  // Fallback mock
   const match = MATCHES.find((m) => m.id === matchId);
   if (match && match.currentPlayers < match.maxPlayers) {
     match.currentPlayers += 1;
@@ -132,49 +159,43 @@ export async function joinMatch(matchId) {
   return match;
 }
 
-// --- Events Services ---
-export async function getEvents() {
-  const apiData = await fetchAPI('/events');
-  if (apiData && apiData.events) return apiData.events;
-  return [...EVENTS];
+export async function leaveMatch(matchId) {
+  const apiData = await fetchAPI(`/v1/matches/${matchId}/leave`, { method: 'POST' });
+  if (apiData) return apiData;
+  return null;
 }
 
-export async function getEventById(id) {
-  return EVENTS.find((e) => e.id === id) || EVENTS[0];
-}
-
-// --- Teams Services ---
-export async function getTeams() {
-  return [...TEAMS];
-}
-
-// --- Community Services ---
-export async function getCommunityPosts() {
-  const apiData = await fetchAPI('/community/feed');
-  if (apiData && apiData.posts) return apiData.posts;
-  return [...POSTS];
-}
-
-// --- Messages Services ---
+// === Chat Services (Phase 7 Backend) ===
 export async function getConversations() {
-  const apiData = await fetchAPI('/chat/messages');
-  if (apiData && apiData.messages) {
-    return [
-      {
-        id: 'conv_rahul',
-        athlete: ATHLETES[0],
-        lastMessage: apiData.messages[apiData.messages.length - 1]?.text || 'Hey Vivek!',
-        timestamp: 'Just now',
-        unreadCount: 0,
-        messages: apiData.messages,
-      },
-      ...CONVERSATIONS.slice(1),
-    ];
-  }
+  const apiData = await fetchAPI('/v1/chat/conversations');
+  if (apiData && apiData.conversations) return apiData.conversations;
+
+  // Fallback to mock
   return [...CONVERSATIONS];
 }
 
+export async function startConversation(otherAthleteId) {
+  const apiData = await fetchAPI('/v1/chat/conversations', {
+    method: 'POST',
+    body: JSON.stringify({ otherAthleteId }),
+  });
+  if (apiData && apiData.conversationId) return apiData;
+  return { conversationId: `conv_${Date.now()}` };
+}
+
+export async function getMessageHistory(conversationId, { limit = 50, before = null } = {}) {
+  const params = new URLSearchParams();
+  if (limit) params.set('limit', limit);
+  if (before) params.set('before', before);
+
+  const apiData = await fetchAPI(`/v1/chat/conversations/${conversationId}/messages?${params.toString()}`);
+  if (apiData && apiData.messages) return apiData.messages;
+  return [];
+}
+
 export async function sendMessage(convId, text) {
+  // Messages are sent via Socket.IO for real-time delivery.
+  // This REST fallback persists directly if socket is unavailable.
   const apiData = await fetchAPI('/chat/send', {
     method: 'POST',
     body: JSON.stringify({ text, receiverName: 'Rahul S.', sport: 'Badminton' }),
@@ -191,7 +212,30 @@ export async function sendMessage(convId, text) {
   return null;
 }
 
-// --- Notifications Services ---
+// === Events Services ===
+export async function getEvents() {
+  const apiData = await fetchAPI('/events');
+  if (apiData && apiData.events) return apiData.events;
+  return [...EVENTS];
+}
+
+export async function getEventById(id) {
+  return EVENTS.find((e) => e.id === id) || EVENTS[0];
+}
+
+// === Teams Services ===
+export async function getTeams() {
+  return [...TEAMS];
+}
+
+// === Community Services ===
+export async function getCommunityPosts() {
+  const apiData = await fetchAPI('/community/feed');
+  if (apiData && apiData.posts) return apiData.posts;
+  return [...POSTS];
+}
+
+// === Notifications Services ===
 export async function getNotifications() {
   return [...NOTIFICATIONS];
 }

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { apiLogin, apiRegister, apiLogout, apiGetProfile } from '../services/api.js';
+import { initSocket, disconnectSocket } from '../services/socket.js';
 
 const AuthContext = createContext(null);
 
@@ -64,13 +65,24 @@ const DEMO_USER = {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(DEMO_USER);
   const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [authToken, setAuthToken] = useState(null);
 
   useEffect(() => {
     async function checkAuthStatus() {
-      const profile = await apiGetProfile();
-      if (profile && profile.user) {
-        setUser((prev) => ({ ...prev, ...profile.user }));
-        setIsAuthenticated(true);
+      try {
+        const profile = await apiGetProfile();
+        if (profile && profile.user) {
+          setUser((prev) => ({ ...prev, ...profile.user }));
+          setIsAuthenticated(true);
+          // Token comes from HttpOnly cookie, so we pass null to socket
+          // and rely on cookie-based auth or token from login response
+          if (profile.token) {
+            setAuthToken(profile.token);
+            initSocket(profile.token);
+          }
+        }
+      } catch {
+        // Keep demo user — silent fallback
       }
     }
     checkAuthStatus();
@@ -80,9 +92,16 @@ export function AuthProvider({ children }) {
     const res = await apiLogin(email, password);
     if (res && res.user) {
       setUser((prev) => ({ ...prev, ...res.user }));
-    } else {
-      setUser(DEMO_USER);
+      setIsAuthenticated(true);
+      // Store token for Socket.IO auth handshake
+      if (res.token) {
+        setAuthToken(res.token);
+        initSocket(res.token);
+      }
+      return true;
     }
+    // If API returned null (network error), fallback to demo
+    setUser(DEMO_USER);
     setIsAuthenticated(true);
     return true;
   };
@@ -97,15 +116,23 @@ export function AuthProvider({ children }) {
     const res = await apiRegister(data);
     if (res && res.user) {
       setUser((prev) => ({ ...prev, ...res.user }));
-    } else {
-      setUser({ ...DEMO_USER, ...data });
+      setIsAuthenticated(true);
+      if (res.token) {
+        setAuthToken(res.token);
+        initSocket(res.token);
+      }
+      return true;
     }
+    // Fallback to demo
+    setUser({ ...DEMO_USER, ...data });
     setIsAuthenticated(true);
     return true;
   };
 
   const logout = async () => {
     await apiLogout();
+    disconnectSocket();
+    setAuthToken(null);
     setUser(null);
     setIsAuthenticated(false);
   };
@@ -115,7 +142,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, login, demoLogin, signup, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, authToken, login, demoLogin, signup, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
