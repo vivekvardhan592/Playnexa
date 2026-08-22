@@ -1,5 +1,14 @@
 import express from 'express';
-import { registerUser, loginUser, logoutUser, getUserProfile, sendOTP, verifyOTP } from '../controllers/authController.js';
+import {
+  registerUser,
+  loginUser,
+  logoutUser,
+  getUserProfile,
+  sendOTP,
+  verifyOTP,
+  forgotPassword,
+  resetPassword,
+} from '../controllers/authController.js';
 import { requireAuth } from '../middleware/auth.middleware.js';
 import { validateRegistration, validateLogin } from '../middleware/validation.middleware.js';
 import { authRateLimiter } from '../middleware/rateLimit.middleware.js';
@@ -8,6 +17,8 @@ const router = express.Router();
 
 router.post('/send-otp', authRateLimiter, sendOTP);
 router.post('/verify-otp', authRateLimiter, verifyOTP);
+router.post('/forgot-password', authRateLimiter, forgotPassword);
+router.post('/reset-password', authRateLimiter, resetPassword);
 router.post('/register', authRateLimiter, validateRegistration, registerUser);
 router.post('/login', authRateLimiter, validateLogin, loginUser);
 router.post('/logout', requireAuth, logoutUser);

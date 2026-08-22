@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import OTPModal from '../../components/ui/OTPModal';
-import { Sparkles, ArrowRight, ShieldCheck, Mail, Lock, KeyRound } from 'lucide-react';
+import { Sparkles, ArrowRight, Mail, Lock } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('vivek@sportsphere.com');
   const [password, setPassword] = useState('password123');
-  const [isOTPModalOpen, setIsOTPModalOpen] = useState(false);
 
   const { login, demoLogin } = useAuth();
   const navigate = useNavigate();
@@ -23,12 +21,6 @@ export default function LoginPage() {
     navigate('/app');
   };
 
-  const handleOTPVerified = () => {
-    setIsOTPModalOpen(false);
-    demoLogin();
-    navigate('/app');
-  };
-
   return (
     <div className="w-full glass-panel rounded-3xl p-6 sm:p-8 border border-slate-700/80 shadow-2xl space-y-6">
       
@@ -38,12 +30,12 @@ export default function LoginPage() {
           Welcome Back to <span className="text-gradient-emerald">SportSphere</span>
         </h2>
         <p className="text-xs sm:text-sm text-slate-400">
-          Enter your credentials, request a 6-digit OTP, or click Instant Demo Access.
+          Enter your credentials or click Instant Demo Access to enter.
         </p>
       </div>
 
-      {/* Demo Quick Access & OTP Buttons */}
-      <div className="space-y-2">
+      {/* Demo Quick Access Button */}
+      <div>
         <button
           onClick={handleDemoAccess}
           className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-500/20 via-teal-500/20 to-cyan-500/20 border border-emerald-500/40 text-emerald-300 font-bold text-xs hover:border-emerald-400 transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/10 cursor-pointer"
@@ -51,14 +43,6 @@ export default function LoginPage() {
           <Sparkles className="w-4 h-4 text-emerald-400 fill-emerald-400" />
           <span>Instant Demo Login (Judge Quick Pass)</span>
           <ArrowRight className="w-4 h-4 text-emerald-400" />
-        </button>
-
-        <button
-          onClick={() => setIsOTPModalOpen(true)}
-          className="w-full py-2.5 px-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 font-semibold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
-        >
-          <KeyRound className="w-4 h-4 text-cyan-400" />
-          <span>Login via 6-Digit OTP Code</span>
         </button>
       </div>
 
@@ -105,7 +89,7 @@ export default function LoginPage() {
             <input type="checkbox" defaultChecked className="rounded bg-slate-900 border-slate-700 text-emerald-400 focus:ring-0" />
             <span>Remember me</span>
           </label>
-          <Link to="/auth/forgot-password" className="text-emerald-400 hover:underline">
+          <Link to="/auth/forgot-password" className="text-emerald-400 font-bold hover:underline">
             Forgot password?
           </Link>
         </div>
@@ -125,14 +109,6 @@ export default function LoginPage() {
           Create Athlete Identity
         </Link>
       </div>
-
-      {/* OTP Verification Modal */}
-      <OTPModal
-        isOpen={isOTPModalOpen}
-        onClose={() => setIsOTPModalOpen(false)}
-        email={email}
-        onVerified={handleOTPVerified}
-      />
 
     </div>
   );

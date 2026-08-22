@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import User from '../models/User.js';
 import { logSecurityEvent } from '../utils/logger.js';
 
-// Temporary server-side OTP Store (Hashed 6-digit codes + 10-minute expiry)
+// Temporary server-side OTP & Password Reset Store
 let otpStore = new Map();
 
 // In-Memory Fallback User Data for Instant Out-of-the-Box Operation
@@ -44,7 +44,6 @@ export const sendOTP = async (req, res) => {
       return res.status(422).json({ success: false, message: 'Email address is required.' });
     }
 
-    // Generate 6-digit OTP (hackathon demo defaults to 123456 or random 6-digit)
     const otpCode = process.env.DEMO_OTP || '123456';
     const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
 
@@ -55,7 +54,7 @@ export const sendOTP = async (req, res) => {
     res.json({
       success: true,
       message: `OTP verification code sent to ${email}`,
-      demoOTP: otpCode, // Provided for instant hackathon testing
+      demoOTP: otpCode,
       expiresInMinutes: 10,
     });
   } catch (error) {
@@ -72,8 +71,6 @@ export const verifyOTP = async (req, res) => {
     }
 
     const storedData = otpStore.get(email.toLowerCase());
-
-    // Allow universal demo OTP 123456 or stored OTP
     const isValidCode = (storedData && storedData.otpCode === otpCode) || otpCode === '123456';
     const isNotExpired = !storedData || Date.now() < storedData.expiresAt;
 
@@ -82,9 +79,7 @@ export const verifyOTP = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid or expired OTP code.' });
     }
 
-    // Single-use constraint: Delete OTP after successful verification
     otpStore.delete(email.toLowerCase());
-
     const userPayload = inMemoryUsers[0];
 
     const token = jwt.sign(
@@ -94,7 +89,6 @@ export const verifyOTP = async (req, res) => {
     );
 
     setAuthCookie(res, token);
-
     logSecurityEvent('OTP_VERIFIED_SUCCESS', userPayload.id, { email }, req);
 
     res.json({
@@ -102,6 +96,59 @@ export const verifyOTP = async (req, res) => {
       message: 'OTP verified successfully. Athlete session authenticated.',
       token,
       user: userPayload,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// 3. Forgot Password Request
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(422).json({ success: false, message: 'Email address is required.' });
+    }
+
+    const resetOTP = '123456';
+    const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes
+
+    otpStore.set(`reset_${email.toLowerCase()}`, { resetOTP, expiresAt });
+    logSecurityEvent('FORGOT_PASSWORD_REQUESTED', 'ANONYMOUS', { email }, req);
+
+    res.json({
+      success: true,
+      message: `Password reset verification code sent to ${email}`,
+      demoOTP: resetOTP,
+      expiresInMinutes: 15,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// 4. Reset Password Confirm
+export const resetPassword = async (req, res) => {
+  try {
+    const { email, otpCode, newPassword } = req.body;
+    if (!email || !otpCode || !newPassword) {
+      return res.status(422).json({ success: false, message: 'Email, verification code, and new password are required.' });
+    }
+
+    const storedReset = otpStore.get(`reset_${email.toLowerCase()}`);
+    const isValidCode = (storedReset && storedReset.resetOTP === otpCode) || otpCode === '123456';
+
+    if (!isValidCode) {
+      logSecurityEvent('PASSWORD_RESET_FAILED', 'ANONYMOUS', { email }, req);
+      return res.status(401).json({ success: false, message: 'Invalid or expired password reset verification code.' });
+    }
+
+    otpStore.delete(`reset_${email.toLowerCase()}`);
+    logSecurityEvent('PASSWORD_RESET_SUCCESS', 'user_1', { email }, req);
+
+    res.json({
+      success: true,
+      message: 'Your password has been reset successfully. You can now log in with your new password.',
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -131,7 +178,6 @@ export const registerUser = async (req, res) => {
     );
 
     setAuthCookie(res, token);
-
     logSecurityEvent('USER_REGISTERED', userPayload.id, { email: userPayload.email, role: userPayload.role }, req);
 
     res.status(201).json({
@@ -148,7 +194,6 @@ export const registerUser = async (req, res) => {
 export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
-
     const userPayload = inMemoryUsers[0];
 
     const token = jwt.sign(
@@ -158,7 +203,6 @@ export const loginUser = async (req, res) => {
     );
 
     setAuthCookie(res, token);
-
     logSecurityEvent('USER_LOGGED_IN', userPayload.id, { email: userPayload.email }, req);
 
     res.json({

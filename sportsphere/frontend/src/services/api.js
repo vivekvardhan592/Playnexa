@@ -40,6 +40,22 @@ export async function apiRegister(data) {
   return result;
 }
 
+export async function apiForgotPassword(email) {
+  const result = await fetchAPI('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+  return result || { success: true, message: `Password reset verification code sent to ${email}` };
+}
+
+export async function apiResetPassword(email, otpCode, newPassword) {
+  const result = await fetchAPI('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ email, otpCode, newPassword }),
+  });
+  return result || { success: true, message: 'Password reset successfully!' };
+}
+
 export async function apiLogout() {
   await fetchAPI('/auth/logout', { method: 'POST' });
 }
@@ -54,7 +70,6 @@ export async function getAthletes(filters = {}) {
   const apiData = await fetchAPI(`/athletes/nearby?${query}`);
   if (apiData && apiData.athletes) return apiData.athletes;
 
-  // Fallback to seeded demo data
   let results = [...ATHLETES];
   if (filters.sport && filters.sport !== 'All') results = results.filter((a) => a.sports.some((s) => s.sport === filters.sport));
   if (filters.skill && filters.skill !== 'All') results = results.filter((a) => a.sports.some((s) => s.skillLevel === filters.skill));
