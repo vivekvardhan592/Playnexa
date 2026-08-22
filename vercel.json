@@ -1,0 +1,10 @@
+{
+  "buildCommand": "cd sportsphere/frontend && npm install && npm run build",
+  "outputDirectory": "sportsphere/frontend/dist",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
+  ]
+}
