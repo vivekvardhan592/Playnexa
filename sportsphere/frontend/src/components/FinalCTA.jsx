@@ -9,7 +9,6 @@ export default function FinalCTA({ onOpenMatchModal }) {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-gradient-to-b from-emerald-500/15 via-cyan-500/10 to-transparent rounded-full blur-[160px] pointer-events-none"></div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        
         {/* Main Emotional Final CTA Box */}
         <div className="glass-panel rounded-3xl p-8 sm:p-16 border border-slate-700/60 text-center shadow-2xl relative overflow-hidden">
           
