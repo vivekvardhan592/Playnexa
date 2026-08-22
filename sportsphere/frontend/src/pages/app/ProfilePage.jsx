@@ -1,12 +1,18 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import EditProfileModal from '../../components/EditProfileModal';
 import { CheckCircle2, ShieldCheck, MapPin, Calendar, Trophy, Flame, Zap, Award, Edit3 } from 'lucide-react';
 
 export default function ProfilePage() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const [activeSportIndex, setActiveSportIndex] = useState(0);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  const activeSportObj = user?.sports[activeSportIndex] || user?.sports[0];
+  const activeSportObj = user?.sports?.[activeSportIndex] || user?.sports?.[0];
+
+  const handleSaveProfile = async (updatedFields) => {
+    updateUser(updatedFields);
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -22,7 +28,7 @@ export default function ProfilePage() {
             <div className="relative">
               <img
                 src={user?.avatar || '/athlete_rahul.jpg'}
-                alt={user?.name}
+                alt={user?.name || 'Athlete'}
                 className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border-2 border-emerald-400 shadow-xl shadow-emerald-500/20"
               />
               {user?.verified && (
@@ -35,7 +41,7 @@ export default function ProfilePage() {
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <h1 className="font-heading font-extrabold text-2xl sm:text-3xl text-white">
-                  {user?.name}
+                  {user?.name || 'Vivek Kumar'}
                 </h1>
                 <span className="px-2.5 py-0.5 rounded-full bg-emerald-950 text-emerald-400 text-xs font-mono font-bold border border-emerald-800 flex items-center gap-1">
                   <ShieldCheck className="w-3.5 h-3.5" />
@@ -46,24 +52,24 @@ export default function ProfilePage() {
               <div className="flex items-center gap-3 text-xs text-slate-400 font-medium">
                 <span className="flex items-center gap-1">
                   <MapPin className="w-3.5 h-3.5 text-emerald-400" />
-                  {user?.area}, {user?.city}
+                  {user?.area || 'Gachibowli'}, {user?.city || 'Hyderabad'}
                 </span>
                 <span>•</span>
                 <span className="flex items-center gap-1">
                   <Calendar className="w-3.5 h-3.5 text-cyan-400" />
-                  Member since {user?.memberSince}
+                  Member since {user?.memberSince || 'Jan 2026'}
                 </span>
               </div>
 
               <p className="text-xs sm:text-sm text-slate-300 max-w-xl pt-1">
-                "{user?.bio}"
+                "{user?.bio || 'Weekend badminton player and competitive athlete.'}"
               </p>
             </div>
           </div>
 
           <button
-            onClick={() => alert('Profile editing modal ready')}
-            className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-200 transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
+            onClick={() => setIsEditModalOpen(true)}
+            className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-bold text-slate-200 transition-colors flex items-center gap-1.5 cursor-pointer shrink-0"
           >
             <Edit3 className="w-4 h-4 text-emerald-400" />
             <span>Edit Profile</span>
@@ -75,14 +81,14 @@ export default function ProfilePage() {
       <section className="space-y-4">
         <div className="flex items-center justify-between">
           <span className="text-xs font-mono font-bold tracking-wider text-slate-400 uppercase">
-            MULTI-SPORT IDENTITY ({user?.sports.length || 0} SPORTS REPRESENTED)
+            MULTI-SPORT IDENTITY ({user?.sports?.length || 0} SPORTS REPRESENTED)
           </span>
         </div>
 
         <div className="flex items-center gap-2 overflow-x-auto pb-2">
-          {user?.sports.map((s, idx) => (
+          {(user?.sports || []).map((s, idx) => (
             <button
-              key={s.sport}
+              key={s.sport || idx}
               onClick={() => setActiveSportIndex(idx)}
               className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shrink-0 border ${
                 activeSportIndex === idx
@@ -152,7 +158,7 @@ export default function ProfilePage() {
           </div>
 
           <span className="px-3 py-1 rounded-full bg-emerald-950 text-emerald-400 text-xs font-mono font-bold border border-emerald-800">
-            {user?.trust?.attendanceRatePct}% ATTENDANCE SCORE
+            {user?.trust?.attendanceRatePct || 92}% ATTENDANCE SCORE
           </span>
         </div>
 
@@ -160,7 +166,7 @@ export default function ProfilePage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 text-center space-y-1">
             <div className="text-3xl font-extrabold font-heading text-emerald-400">
-              {user?.trust?.completed} / {user?.trust?.totalScheduled}
+              {user?.trust?.completed || 22} / {user?.trust?.totalScheduled || 24}
             </div>
             <div className="text-xs font-medium text-slate-300">Matches Completed</div>
             <div className="text-[10px] font-mono text-slate-400">Scheduled games show-up</div>
@@ -168,7 +174,7 @@ export default function ProfilePage() {
 
           <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 text-center space-y-1">
             <div className="text-3xl font-extrabold font-heading text-cyan-400">
-              {user?.trust?.zeroFlakeStreak} Games
+              {user?.trust?.zeroFlakeStreak || 14} Games
             </div>
             <div className="text-xs font-medium text-slate-300">Zero-Flake Streak</div>
             <div className="text-[10px] font-mono text-slate-400">Consecutive clean attendance</div>
@@ -176,7 +182,7 @@ export default function ProfilePage() {
 
           <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 text-center space-y-1">
             <div className="text-3xl font-extrabold font-heading text-white">
-              {user?.trust?.uniqueCoPlayersMet} Athletes
+              {user?.trust?.uniqueCoPlayersMet || 18} Athletes
             </div>
             <div className="text-xs font-medium text-slate-300">Unique Players Met</div>
             <div className="text-[10px] font-mono text-slate-400">Verified co-players</div>
@@ -184,7 +190,7 @@ export default function ProfilePage() {
 
           <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 text-center space-y-1">
             <div className="text-3xl font-extrabold font-heading text-amber-400">
-              {user?.trust?.monthsActive} Months
+              {user?.trust?.monthsActive || 8} Months
             </div>
             <div className="text-xs font-medium text-slate-300">Community Tenure</div>
             <div className="text-[10px] font-mono text-slate-400">Active member history</div>
@@ -192,6 +198,14 @@ export default function ProfilePage() {
         </div>
 
       </section>
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        user={user}
+        onSave={handleSaveProfile}
+      />
 
     </div>
   );
