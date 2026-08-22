@@ -139,8 +139,9 @@ export async function createMatch(data) {
     ...data,
     status: 'OPEN',
     currentPlayers: 1,
-    participants: [],
-    creator: { name: 'Vivek Kumar', avatar: '/athlete_rahul.jpg', verified: true },
+    participants: [{ id: 'user_1', name: 'Vivek Kumar', avatar: '/athlete_rahul.jpg', verified: true }],
+    creator: { id: 'user_1', name: 'Vivek Kumar', avatar: '/athlete_rahul.jpg', verified: true },
+    creator_id: 'user_1',
   };
   MATCHES.unshift(newMatch);
   return newMatch;
@@ -150,11 +151,27 @@ export async function joinMatch(matchId) {
   const apiData = await fetchAPI(`/v1/matches/${matchId}/join`, { method: 'POST' });
   if (apiData && apiData.match) return apiData.match;
 
-  // Fallback mock
+  // Fallback mock — strictly prevent duplicate joins by the same athlete
   const match = MATCHES.find((m) => m.id === matchId);
-  if (match && match.currentPlayers < match.maxPlayers) {
-    match.currentPlayers += 1;
-    if (match.currentPlayers === match.maxPlayers) match.status = 'FULL';
+  if (match) {
+    const userAthleteId = 'user_1';
+    const alreadyJoined = (match.participants || []).some(
+      (p) => String(p.id || p.athlete_id) === String(userAthleteId)
+    );
+
+    if (alreadyJoined) {
+      const err = new Error('You have already joined this match lobby.');
+      err.statusCode = 409;
+      err.code = 'DUPLICATE_PARTICIPANT';
+      throw err;
+    }
+
+    if (match.currentPlayers < match.maxPlayers) {
+      match.currentPlayers += 1;
+      match.participants = match.participants || [];
+      match.participants.push({ id: userAthleteId, name: 'Vivek Kumar', avatar: '/athlete_rahul.jpg', verified: true });
+      if (match.currentPlayers === match.maxPlayers) match.status = 'FULL';
+    }
   }
   return match;
 }
@@ -162,7 +179,20 @@ export async function joinMatch(matchId) {
 export async function leaveMatch(matchId) {
   const apiData = await fetchAPI(`/v1/matches/${matchId}/leave`, { method: 'POST' });
   if (apiData) return apiData;
-  return null;
+
+  // Fallback mock
+  const match = MATCHES.find((m) => m.id === matchId);
+  if (match) {
+    const userAthleteId = 'user_1';
+    match.participants = (match.participants || []).filter(
+      (p) => String(p.id || p.athlete_id) !== String(userAthleteId)
+    );
+    match.currentPlayers = Math.max(1, match.currentPlayers - 1);
+    if (match.currentPlayers < match.maxPlayers && match.status === 'FULL') {
+      match.status = 'OPEN';
+    }
+  }
+  return match;
 }
 
 // === Chat Services (Phase 7 Backend) ===
@@ -179,7 +209,7 @@ export async function startConversation(otherAthleteId) {
     method: 'POST',
     body: JSON.stringify({ otherAthleteId }),
   });
-  if (apiData && apiData.conversationId) return apiData;
+  if (apiData && apiData.conversationId) return apiData.conversationId;
   return { conversationId: `conv_${Date.now()}` };
 }
 
