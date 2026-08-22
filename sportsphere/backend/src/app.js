@@ -7,6 +7,7 @@ import { requestIdMiddleware } from './middleware/requestId.middleware.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import healthRoutes from './routes/healthRoutes.js';
 import authRoutes from './modules/auth/auth.routes.js';
+import athleteRoutes from './modules/athletes/athletes.routes.js';
 
 const app = express();
 
@@ -54,7 +55,11 @@ app.use('/api', healthRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/auth', authRoutes);
 
-// 8. Global Centralized Error Handler
+// 8. Phase 4 Athlete Profile Domain Routes
+app.use('/api/v1/athletes', athleteRoutes);
+app.use('/api/athletes', athleteRoutes);
+
+// 9. Global Centralized Error Handler
 app.use(errorHandler);
 
 export default app;
