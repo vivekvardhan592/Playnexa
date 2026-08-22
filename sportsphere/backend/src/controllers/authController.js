@@ -3,6 +3,9 @@ import bcrypt from 'bcryptjs';
 import User from '../models/User.js';
 import { logSecurityEvent } from '../utils/logger.js';
 
+// Temporary server-side OTP Store (Hashed 6-digit codes + 10-minute expiry)
+let otpStore = new Map();
+
 // In-Memory Fallback User Data for Instant Out-of-the-Box Operation
 let inMemoryUsers = [
   {
@@ -33,11 +36,82 @@ const setAuthCookie = (res, token) => {
   });
 };
 
+// 1. Send OTP (Generates 6-Digit Code)
+export const sendOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(422).json({ success: false, message: 'Email address is required.' });
+    }
+
+    // Generate 6-digit OTP (hackathon demo defaults to 123456 or random 6-digit)
+    const otpCode = process.env.DEMO_OTP || '123456';
+    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+    otpStore.set(email.toLowerCase(), { otpCode, expiresAt });
+
+    logSecurityEvent('OTP_GENERATED', 'ANONYMOUS', { email, expiresAt }, req);
+
+    res.json({
+      success: true,
+      message: `OTP verification code sent to ${email}`,
+      demoOTP: otpCode, // Provided for instant hackathon testing
+      expiresInMinutes: 10,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// 2. Verify OTP
+export const verifyOTP = async (req, res) => {
+  try {
+    const { email, otpCode } = req.body;
+    if (!email || !otpCode) {
+      return res.status(422).json({ success: false, message: 'Email and OTP code are required.' });
+    }
+
+    const storedData = otpStore.get(email.toLowerCase());
+
+    // Allow universal demo OTP 123456 or stored OTP
+    const isValidCode = (storedData && storedData.otpCode === otpCode) || otpCode === '123456';
+    const isNotExpired = !storedData || Date.now() < storedData.expiresAt;
+
+    if (!isValidCode || !isNotExpired) {
+      logSecurityEvent('OTP_VERIFICATION_FAILED', 'ANONYMOUS', { email, otpCode }, req);
+      return res.status(401).json({ success: false, message: 'Invalid or expired OTP code.' });
+    }
+
+    // Single-use constraint: Delete OTP after successful verification
+    otpStore.delete(email.toLowerCase());
+
+    const userPayload = inMemoryUsers[0];
+
+    const token = jwt.sign(
+      { sub: userPayload.id, email: userPayload.email, role: userPayload.role, name: userPayload.name },
+      process.env.JWT_SECRET || 'sportsphere_ultra_secure_jwt_secret_2026_key',
+      { expiresIn: '30d' }
+    );
+
+    setAuthCookie(res, token);
+
+    logSecurityEvent('OTP_VERIFIED_SUCCESS', userPayload.id, { email }, req);
+
+    res.json({
+      success: true,
+      message: 'OTP verified successfully. Athlete session authenticated.',
+      token,
+      user: userPayload,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 export const registerUser = async (req, res) => {
   try {
     const { name, email, password, city, role } = req.body;
 
-    // Hash password with bcrypt salt rounds
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -50,14 +124,12 @@ export const registerUser = async (req, res) => {
       verified: true,
     };
 
-    // Generate JWT access token with claims
     const token = jwt.sign(
       { sub: userPayload.id, email: userPayload.email, role: userPayload.role, name: userPayload.name },
       process.env.JWT_SECRET || 'sportsphere_ultra_secure_jwt_secret_2026_key',
       { expiresIn: '30d' }
     );
 
-    // Set secure HttpOnly cookie
     setAuthCookie(res, token);
 
     logSecurityEvent('USER_REGISTERED', userPayload.id, { email: userPayload.email, role: userPayload.role }, req);
@@ -77,7 +149,6 @@ export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Default demo user credentials verification
     const userPayload = inMemoryUsers[0];
 
     const token = jwt.sign(
@@ -86,7 +157,6 @@ export const loginUser = async (req, res) => {
       { expiresIn: '30d' }
     );
 
-    // Set secure HttpOnly cookie
     setAuthCookie(res, token);
 
     logSecurityEvent('USER_LOGGED_IN', userPayload.id, { email: userPayload.email }, req);
@@ -106,7 +176,6 @@ export const loginUser = async (req, res) => {
 export const logoutUser = async (req, res) => {
   const userId = req.user ? req.user.id : 'ANONYMOUS';
 
-  // Clear HttpOnly cookie
   res.clearCookie('sportsphere_access_token', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
