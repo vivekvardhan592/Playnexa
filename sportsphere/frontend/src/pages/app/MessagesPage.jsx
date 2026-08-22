@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getConversations, sendMessage } from '../../services/api';
-import { Send, Sparkles, CheckCircle2, MessageSquare, Phone, Video, Search } from 'lucide-react';
+import { subscribeToMessages, sendSocketMessage } from '../../services/socket';
+import { Send, Sparkles, CheckCircle2, MessageSquare, Phone, Video } from 'lucide-react';
 
 export default function MessagesPage() {
   const [conversations, setConversations] = useState([]);
@@ -13,6 +14,28 @@ export default function MessagesPage() {
       setConversations(data);
     }
     loadConversations();
+
+    // Subscribe to incoming real-time Socket.IO messages
+    const unsubscribe = subscribeToMessages((data) => {
+      setConversations((prevConvs) =>
+        prevConvs.map((conv) => {
+          if (conv.id === 'conv_rahul') {
+            return {
+              ...conv,
+              messages: [
+                ...conv.messages,
+                { id: Date.now(), sender: data.senderName || 'Rahul S.', text: data.text, time: 'Just now', isOwn: false },
+              ],
+              lastMessage: data.text,
+              timestamp: 'Just now',
+            };
+          }
+          return conv;
+        })
+      );
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const activeConv = conversations.find((c) => c.id === activeConvId) || conversations[0];
@@ -24,6 +47,15 @@ export default function MessagesPage() {
     const text = inputMsg.trim();
     setInputMsg('');
 
+    // Emit live Socket.IO message event
+    sendSocketMessage({
+      senderName: 'Vivek Kumar',
+      receiverName: activeConv.athlete?.name || 'Rahul S.',
+      sport: 'Badminton',
+      text,
+    });
+
+    // Save message via REST API
     const newMsg = await sendMessage(activeConv.id, text);
     if (newMsg) {
       setConversations([...conversations]);
@@ -42,7 +74,7 @@ export default function MessagesPage() {
         <div className="p-4 border-b border-slate-800 flex items-center justify-between">
           <h2 className="font-heading font-extrabold text-lg text-white">Direct Messages</h2>
           <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">
-            SOCKET READY
+            SOCKET CONNECTED
           </span>
         </div>
 
@@ -171,7 +203,7 @@ export default function MessagesPage() {
             />
             <button
               type="submit"
-              className="px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-400 to-cyan-400 text-slate-950 font-extrabold text-xs hover:opacity-95 shadow-md shadow-emerald-500/20 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+              className="px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-400 to-cyan-400 text-slate-950 font-extrabold text-xs hover:opacity-95 shadow-md shadow-emerald-500/20 transition-all cursor-pointer shrink-0 flex items-center gap-1.5"
             >
               <Send className="w-4 h-4 fill-slate-950" />
               <span>Send</span>

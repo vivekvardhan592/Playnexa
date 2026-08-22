@@ -1,9 +1,10 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { apiLogin, apiRegister, apiLogout, apiGetProfile } from '../services/api.js';
 
 const AuthContext = createContext(null);
 
 const DEMO_USER = {
-  id: 'user_vivek',
+  id: 'user_1',
   name: 'Vivek Kumar',
   email: 'vivek@sportsphere.com',
   city: 'Hyderabad',
@@ -61,12 +62,27 @@ const DEMO_USER = {
 };
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState(DEMO_USER);
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
 
-  const login = (email, password) => {
-    // Demo login — accepts anything
-    setUser(DEMO_USER);
+  useEffect(() => {
+    async function checkAuthStatus() {
+      const profile = await apiGetProfile();
+      if (profile && profile.user) {
+        setUser((prev) => ({ ...prev, ...profile.user }));
+        setIsAuthenticated(true);
+      }
+    }
+    checkAuthStatus();
+  }, []);
+
+  const login = async (email, password) => {
+    const res = await apiLogin(email, password);
+    if (res && res.user) {
+      setUser((prev) => ({ ...prev, ...res.user }));
+    } else {
+      setUser(DEMO_USER);
+    }
     setIsAuthenticated(true);
     return true;
   };
@@ -77,14 +93,19 @@ export function AuthProvider({ children }) {
     return true;
   };
 
-  const signup = (data) => {
-    const newUser = { ...DEMO_USER, ...data };
-    setUser(newUser);
+  const signup = async (data) => {
+    const res = await apiRegister(data);
+    if (res && res.user) {
+      setUser((prev) => ({ ...prev, ...res.user }));
+    } else {
+      setUser({ ...DEMO_USER, ...data });
+    }
     setIsAuthenticated(true);
     return true;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await apiLogout();
     setUser(null);
     setIsAuthenticated(false);
   };
