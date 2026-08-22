@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 const SportIdentitySchema = new mongoose.Schema({
   sport: { type: String, required: true },
   skillLevel: { type: String, enum: ['Beginner', 'Intermediate', 'Advanced', 'Competitive'], default: 'Intermediate' },
-  customMetrics: { type: Map, of: String }, // e.g. { battingAvg: "38.5", smashSpeed: "240 km/h" }
+  customMetrics: { type: Map, of: String },
   preferredVenues: [String],
   gear: String,
 });
@@ -11,8 +11,9 @@ const SportIdentitySchema = new mongoose.Schema({
 const UserSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
+    email: { type: String, required: true, unique: true, index: true },
+    password: { type: String, required: true }, // Hashed password
+    role: { type: String, enum: ['USER', 'COACH', 'ORGANIZER', 'ADMIN'], default: 'USER' },
     city: { type: String, default: 'Hyderabad' },
     verified: { type: Boolean, default: true },
     avatar: { type: String, default: '/athlete_rahul.jpg' },

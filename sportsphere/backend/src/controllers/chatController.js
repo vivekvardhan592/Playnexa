@@ -1,4 +1,5 @@
-// Chat Controller — Handles Real-Time Direct Athlete Messaging
+import { logSecurityEvent } from '../utils/logger.js';
+
 let sampleMessages = [
   {
     id: 1,
@@ -21,6 +22,8 @@ let sampleMessages = [
 export const getMessageThread = async (req, res) => {
   try {
     const { athleteName } = req.query;
+    const currentUserName = req.user ? req.user.name : 'Vivek Kumar';
+
     res.json({
       success: true,
       athlete: athleteName || 'Rahul S.',
@@ -34,10 +37,11 @@ export const getMessageThread = async (req, res) => {
 export const sendMessage = async (req, res) => {
   try {
     const { text, receiverName, sport } = req.body;
+    const senderName = req.user ? req.user.name : 'Vivek Kumar';
 
     const userMsg = {
       id: Date.now(),
-      senderName: 'Vivek Kumar',
+      senderName,
       receiverName: receiverName || 'Rahul S.',
       sport: sport || 'Badminton',
       text: text.trim(),
@@ -46,11 +50,13 @@ export const sendMessage = async (req, res) => {
 
     sampleMessages.push(userMsg);
 
+    logSecurityEvent('CHAT_MESSAGE_SENT', req.user?.id || 'user_1', { receiverName, sport }, req);
+
     // Auto reply simulation
     const autoReply = {
       id: Date.now() + 1,
       senderName: receiverName || 'Rahul S.',
-      receiverName: 'Vivek Kumar',
+      receiverName: senderName,
       sport: sport || 'Badminton',
       text: "Awesome! Confirmed for 6 PM. I'll bring extra equipment. See you on court! 🔥",
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
