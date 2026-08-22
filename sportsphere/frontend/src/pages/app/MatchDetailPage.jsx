@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getMatchById, joinMatch, leaveMatch } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
-import { ArrowLeft, Clock, MapPin, CheckCircle2, ShieldCheck, Users, MessageSquare, ArrowRight } from 'lucide-react';
+import { ArrowLeft, Clock, MapPin, CheckCircle2, ShieldCheck, Users, MessageSquare, ArrowRight, Crown } from 'lucide-react';
 
 export default function MatchDetailPage() {
   const { id } = useParams();
@@ -18,7 +18,6 @@ export default function MatchDetailPage() {
       const data = await getMatchById(id || 'match_1');
       if (data) {
         setMatch(data);
-        // Check if current logged-in user is already in participants
         const userAthleteId = user?.athleteId || user?.id;
         const joined = (data.participants || []).some(
           (p) => p.athlete_id === userAthleteId || p.id === userAthleteId
@@ -38,11 +37,22 @@ export default function MatchDetailPage() {
     return <div className="py-12 text-center text-slate-400">Loading match details...</div>;
   }
 
+  const userAthleteId = user?.athleteId || user?.id;
+  const isCreator = Boolean(
+    userAthleteId &&
+    (match.creator_id === userAthleteId ||
+     match.creator?.id === userAthleteId ||
+     match.creator?.athleteId === userAthleteId ||
+     match.creator_name === user?.name)
+  );
+
   const currentPlayers = match.current_players || match.currentPlayers || 1;
   const capacity = match.capacity || match.maxPlayers || 4;
   const isFull = currentPlayers >= capacity;
 
   const handleJoinToggle = async () => {
+    if (isCreator) return; // Creator is host, no join/leave toggle
+
     setError('');
     setLoading(true);
 
@@ -152,31 +162,40 @@ export default function MatchDetailPage() {
           </h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {(match.participants || []).map((p, idx) => (
-              <div
-                key={p.participant_id || p.athlete_id || p.id || idx}
-                onClick={() => navigate(`/app/athlete/${p.athlete_id || p.id || 'rahul'}`)}
-                className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-3 cursor-pointer hover:border-emerald-400 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <img
-                    src={p.profile_image_url || p.avatar || '/athlete_rahul.jpg'}
-                    alt={p.display_name || p.name || 'Athlete'}
-                    className="w-9 h-9 rounded-xl object-cover border border-slate-700"
-                  />
-                  <div>
-                    <div className="flex items-center gap-1">
-                      <span className="font-bold text-xs text-white">{p.display_name || p.name}</span>
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400/20" />
+            {(match.participants || []).map((p, idx) => {
+              const isHost = p.athlete_id === match.creator_id || idx === 0;
+              return (
+                <div
+                  key={p.participant_id || p.athlete_id || p.id || idx}
+                  onClick={() => navigate(`/app/athlete/${p.athlete_id || p.id || 'rahul'}`)}
+                  className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-3 cursor-pointer hover:border-emerald-400 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={p.profile_image_url || p.avatar || '/athlete_rahul.jpg'}
+                      alt={p.display_name || p.name || 'Athlete'}
+                      className="w-9 h-9 rounded-xl object-cover border border-slate-700"
+                    />
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-xs text-white">{p.display_name || p.name}</span>
+                        {isHost ? (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-extrabold bg-amber-950 text-amber-400 border border-amber-800 flex items-center gap-0.5">
+                            <Crown className="w-2.5 h-2.5" /> HOST
+                          </span>
+                        ) : (
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400/20" />
+                        )}
+                      </div>
+                      <span className="text-[11px] text-slate-400">{p.skill_level || 'Confirmed Player'}</span>
                     </div>
-                    <span className="text-[11px] text-slate-400">{p.skill_level || 'Confirmed Player'}</span>
                   </div>
+                  <span className="text-[10px] font-mono text-emerald-400 font-semibold bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
+                    {p.attendance_rate_pct || 94}% Show-up
+                  </span>
                 </div>
-                <span className="text-[10px] font-mono text-emerald-400 font-semibold bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
-                  {p.attendance_rate_pct || 94}% Show-up
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -190,20 +209,27 @@ export default function MatchDetailPage() {
             <span>Group Chat</span>
           </button>
 
-          <button
-            disabled={loading || (isFull && !hasJoined)}
-            onClick={handleJoinToggle}
-            className={`flex-1 py-3.5 rounded-xl font-extrabold text-sm transition-all cursor-pointer flex items-center justify-center gap-2 ${
-              hasJoined
-                ? 'bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500/30'
-                : isFull
-                ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
-                : 'bg-gradient-to-r from-emerald-400 to-cyan-400 text-slate-950 hover:opacity-95 shadow-lg shadow-emerald-500/25'
-            }`}
-          >
-            <span>{loading ? 'Updating...' : hasJoined ? 'Leave Match' : isFull ? 'MATCH FULL' : 'Join Match Now'}</span>
-            {!loading && !hasJoined && !isFull && <ArrowRight className="w-4 h-4 stroke-[3]" />}
-          </button>
+          {isCreator ? (
+            <div className="flex-1 py-3.5 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/10">
+              <Crown className="w-4 h-4 text-amber-400 fill-amber-400" />
+              <span>You Are Hosting This Match</span>
+            </div>
+          ) : (
+            <button
+              disabled={loading || (isFull && !hasJoined)}
+              onClick={handleJoinToggle}
+              className={`flex-1 py-3.5 rounded-xl font-extrabold text-sm transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                hasJoined
+                  ? 'bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500/30'
+                  : isFull
+                  ? 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-emerald-400 to-cyan-400 text-slate-950 hover:opacity-95 shadow-lg shadow-emerald-500/25'
+              }`}
+            >
+              <span>{loading ? 'Updating...' : hasJoined ? 'Leave Match' : isFull ? 'MATCH FULL' : 'Join Match Now'}</span>
+              {!loading && !hasJoined && !isFull && <ArrowRight className="w-4 h-4 stroke-[3]" />}
+            </button>
+          )}
         </div>
 
       </div>

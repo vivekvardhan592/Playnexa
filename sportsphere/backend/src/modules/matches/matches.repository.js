@@ -10,14 +10,42 @@ export const createMatch = async ({ creatorId, sportId, title, description, skil
 
   const newMatch = res.rows[0];
 
-  // Creator automatically joins as first participant
+  // Creator automatically joins as first participant with HOST / JOINED status
   await query(
     `INSERT INTO match_participants (match_id, athlete_id, status)
      VALUES ($1, $2, 'JOINED');`,
     [newMatch.id, creatorId]
   );
 
+  // Notify nearby athletes via PostGIS spatial discovery query
+  notifyNearbyAthletes(newMatch.id, creatorId, longitude, latitude, 10, title, locationName);
+
   return newMatch;
+};
+
+export const notifyNearbyAthletes = async (matchId, creatorId, longitude, latitude, radiusKm = 10, title, locationName) => {
+  try {
+    const nearby = await query(
+      `SELECT a.id, a.display_name
+       FROM athletes a
+       WHERE ST_DWithin(a.location, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography, $3 * 1000)
+         AND a.id != $4;`,
+      [longitude, latitude, radiusKm, creatorId]
+    );
+
+    for (const ath of nearby.rows) {
+      await query(
+        `INSERT INTO notifications (athlete_id, type, title, body)
+         VALUES ($1, 'MATCH_RADAR', 'New Match Ping nearby!', $2);`,
+        [ath.id, `A new match "${title}" was posted near ${locationName}`]
+      ).catch(() => {});
+    }
+
+    return nearby.rows;
+  } catch (err) {
+    console.error('[Notify Nearby Error]:', err.message);
+    return [];
+  }
 };
 
 export const getMatchById = async (matchId) => {
