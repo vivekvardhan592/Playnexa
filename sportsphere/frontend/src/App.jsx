@@ -1,4 +1,12 @@
 import React, { useState } from 'react';
+import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+
+// Layouts
+import AppLayout from './layouts/AppLayout';
+import AuthLayout from './layouts/AuthLayout';
+
+// Landing Page Components
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import TrustStrip from './components/TrustStrip';
@@ -11,10 +19,30 @@ import CommunitySection from './components/CommunitySection';
 import FinalCTA from './components/FinalCTA';
 import MatchModal from './components/MatchModal';
 import ChatModal from './components/ChatModal';
-
 import LiveToast from './components/LiveToast';
 
-export default function App() {
+// Auth Pages
+import LoginPage from './pages/auth/LoginPage';
+import SignupPage from './pages/auth/SignupPage';
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
+import OnboardingPage from './pages/onboarding/OnboardingPage';
+
+// Authenticated Application Pages
+import HomePage from './pages/app/HomePage';
+import DiscoverPage from './pages/app/DiscoverPage';
+import MatchRadarPage from './pages/app/MatchRadarPage';
+import ProfilePage from './pages/app/ProfilePage';
+import AthleteProfilePage from './pages/app/AthleteProfilePage';
+import CreateMatchPage from './pages/app/CreateMatchPage';
+import MatchDetailPage from './pages/app/MatchDetailPage';
+import MessagesPage from './pages/app/MessagesPage';
+import EventsPage from './pages/app/EventsPage';
+import CommunityPage from './pages/app/CommunityPage';
+import NotificationsPage from './pages/app/NotificationsPage';
+import TeamsPage from './pages/app/TeamsPage';
+
+function LandingPage() {
+  const navigate = useNavigate();
   const [isMatchModalOpen, setIsMatchModalOpen] = useState(false);
   const [activeChatAthlete, setActiveChatAthlete] = useState(null);
 
@@ -26,49 +54,27 @@ export default function App() {
     });
   };
 
+  const handlePrimaryMatchClick = () => {
+    navigate('/auth/login');
+  };
+
   return (
     <div className="min-h-screen bg-[#080a0f] text-slate-100 selection:bg-emerald-500 selection:text-slate-950 font-['Plus_Jakarta_Sans',sans-serif] relative overflow-x-hidden">
-      
-      {/* Top Fixed Navbar */}
-      <Navbar onOpenMatchModal={() => setIsMatchModalOpen(true)} />
-
-      {/* Main Storytelling Sections */}
+      <Navbar onOpenMatchModal={handlePrimaryMatchClick} />
       <main>
-        {/* SECTION 2 — HERO & INTERACTIVE MATCH RADAR */}
-        <Hero
-          onOpenMatchModal={() => setIsMatchModalOpen(true)}
-          onOpenChatModal={handleOpenChatModal}
-        />
-
-        {/* SECTION 3 — TRUST STRIP */}
+        <Hero onOpenMatchModal={handlePrimaryMatchClick} onOpenChatModal={handleOpenChatModal} />
         <TrustStrip />
-
-        {/* SECTION 4 — THE PROBLEM & UNIFICATION TRANSFORMATION */}
         <ProblemSection />
-
-        {/* SECTION 5 — MULTI-SPORT IDENTITY */}
         <MultiSportProfile />
-
-        {/* SECTION 6 — MATCH RADAR & EXPLAINABLE DISCOVERY ENGINE */}
         <MatchRadarSection onOpenChatModal={handleOpenChatModal} />
-
-        {/* SECTION 7 — TRUST & SAFETY THROUGH PARTICIPATION */}
         <TrustSafety />
-
-        {/* SECTION 8 — HOW IT WORKS */}
         <HowItWorks />
-
-        {/* SECTION 9 — COMMUNITY & ACTIVE SOCIAL FEED */}
         <CommunitySection onOpenChatModal={handleOpenChatModal} />
-
-        {/* SECTION 10 — FINAL EMOTIONAL CTA */}
-        <FinalCTA onOpenMatchModal={() => setIsMatchModalOpen(true)} />
+        <FinalCTA onOpenMatchModal={handlePrimaryMatchClick} />
       </main>
 
-      {/* Interactive Live Notification Toast */}
       <LiveToast onOpenChatModal={handleOpenChatModal} />
 
-      {/* Interactive Popup Modals */}
       <MatchModal
         isOpen={isMatchModalOpen}
         onClose={() => setIsMatchModalOpen(false)}
@@ -80,7 +86,44 @@ export default function App() {
         athlete={activeChatAthlete}
         onClose={() => setActiveChatAthlete(null)}
       />
-
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public Landing Page */}
+          <Route path="/" element={<LandingPage />} />
+
+          {/* Authentication Routes */}
+          <Route path="/auth" element={<AuthLayout />}>
+            <Route path="login" element={<LoginPage />} />
+            <Route path="signup" element={<SignupPage />} />
+            <Route path="forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="onboarding" element={<OnboardingPage />} />
+          </Route>
+
+          {/* Authenticated Application Routes */}
+          <Route path="/app" element={<AppLayout />}>
+            <Route index element={<HomePage />} />
+            <Route path="discover" element={<DiscoverPage />} />
+            <Route path="radar" element={<MatchRadarPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+            <Route path="athlete/:id" element={<AthleteProfilePage />} />
+            <Route path="create-match" element={<CreateMatchPage />} />
+            <Route path="matches" element={<DiscoverPage />} />
+            <Route path="matches/:id" element={<MatchDetailPage />} />
+            <Route path="messages" element={<MessagesPage />} />
+            <Route path="events" element={<EventsPage />} />
+            <Route path="community" element={<CommunityPage />} />
+            <Route path="notifications" element={<NotificationsPage />} />
+            <Route path="teams" element={<TeamsPage />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
