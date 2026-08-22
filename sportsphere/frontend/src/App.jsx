@@ -60,7 +60,7 @@ function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#080a0f] text-slate-100 selection:bg-emerald-500 selection:text-slate-950 font-['Plus_Jakarta_Sans',sans-serif] relative overflow-x-hidden">
+    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] selection:bg-emerald-500 selection:text-slate-950 font-['Plus_Jakarta_Sans',sans-serif] relative overflow-x-hidden">
       <Navbar onOpenMatchModal={handlePrimaryMatchClick} />
       <main>
         <Hero onOpenMatchModal={handlePrimaryMatchClick} onOpenChatModal={handleOpenChatModal} />
