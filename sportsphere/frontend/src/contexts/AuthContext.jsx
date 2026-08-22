@@ -6,6 +6,7 @@ const AuthContext = createContext(null);
 
 const DEMO_USER = {
   id: 'user_1',
+  athleteId: 'ed3e0581-b173-4e21-b2c8-6707d96b3ad2',
   name: 'Vivek Kumar',
   email: 'vivek@sportsphere.com',
   city: 'Hyderabad',
@@ -27,24 +28,6 @@ const DEMO_USER = {
       skillLevel: 'Intermediate',
       metrics: { matches: 28, runs: 892, average: '38.5', role: 'All-Rounder (Batting)' },
     },
-    {
-      sport: 'Running',
-      emoji: '🏃',
-      skillLevel: 'Beginner',
-      metrics: { best5k: '28:15', best10k: '58:30', totalKm: '142 km', preferredTime: '6:00 AM' },
-    },
-    {
-      sport: 'Swimming',
-      emoji: '🏊',
-      skillLevel: 'Beginner',
-      metrics: { laps: 120, preferredStroke: 'Freestyle', bestLap: '42s (50m)' },
-    },
-    {
-      sport: 'Chess',
-      emoji: '♟️',
-      skillLevel: 'Intermediate',
-      metrics: { rating: 1650, wins: 84, format: 'Rapid 10+0', winStreak: 5 },
-    },
   ],
   trust: {
     totalScheduled: 24,
@@ -63,9 +46,10 @@ const DEMO_USER = {
 };
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(DEMO_USER);
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authToken, setAuthToken] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function checkAuthStatus() {
@@ -74,15 +58,19 @@ export function AuthProvider({ children }) {
         if (profile && profile.user) {
           setUser((prev) => ({ ...prev, ...profile.user }));
           setIsAuthenticated(true);
-          // Token comes from HttpOnly cookie, so we pass null to socket
-          // and rely on cookie-based auth or token from login response
           if (profile.token) {
             setAuthToken(profile.token);
             initSocket(profile.token);
           }
+        } else {
+          setUser(null);
+          setIsAuthenticated(false);
         }
       } catch {
-        // Keep demo user — silent fallback
+        setUser(null);
+        setIsAuthenticated(false);
+      } finally {
+        setLoading(false);
       }
     }
     checkAuthStatus();
@@ -93,17 +81,13 @@ export function AuthProvider({ children }) {
     if (res && res.user) {
       setUser((prev) => ({ ...prev, ...res.user }));
       setIsAuthenticated(true);
-      // Store token for Socket.IO auth handshake
       if (res.token) {
         setAuthToken(res.token);
         initSocket(res.token);
       }
       return true;
     }
-    // If API returned null (network error), fallback to demo
-    setUser(DEMO_USER);
-    setIsAuthenticated(true);
-    return true;
+    return false;
   };
 
   const demoLogin = () => {
@@ -123,10 +107,7 @@ export function AuthProvider({ children }) {
       }
       return true;
     }
-    // Fallback to demo
-    setUser({ ...DEMO_USER, ...data });
-    setIsAuthenticated(true);
-    return true;
+    return false;
   };
 
   const logout = async () => {
@@ -142,7 +123,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, authToken, login, demoLogin, signup, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, authToken, loading, login, demoLogin, signup, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,40 +1,67 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getMatchById, joinMatch } from '../../services/api';
+import { getMatchById, joinMatch, leaveMatch } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 import { ArrowLeft, Clock, MapPin, CheckCircle2, ShieldCheck, Users, MessageSquare, ArrowRight } from 'lucide-react';
 
 export default function MatchDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [match, setMatch] = useState(null);
   const [hasJoined, setHasJoined] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const loadMatch = async () => {
+    try {
+      const data = await getMatchById(id || 'match_1');
+      if (data) {
+        setMatch(data);
+        // Check if current logged-in user is already in participants
+        const userAthleteId = user?.athleteId || user?.id;
+        const joined = (data.participants || []).some(
+          (p) => p.athlete_id === userAthleteId || p.id === userAthleteId
+        );
+        setHasJoined(joined);
+      }
+    } catch (err) {
+      console.error('Error loading match details:', err.message);
+    }
+  };
 
   useEffect(() => {
-    async function loadMatch() {
-      const data = await getMatchById(id || 'match_1');
-      setMatch(data);
-    }
     loadMatch();
-  }, [id]);
+  }, [id, user]);
 
   if (!match) {
     return <div className="py-12 text-center text-slate-400">Loading match details...</div>;
   }
 
-  const isFull = match.currentPlayers >= match.maxPlayers;
+  const currentPlayers = match.current_players || match.currentPlayers || 1;
+  const capacity = match.capacity || match.maxPlayers || 4;
+  const isFull = currentPlayers >= capacity;
 
   const handleJoinToggle = async () => {
-    if (!hasJoined && !isFull) {
-      const updated = await joinMatch(match.id);
-      if (updated) setMatch({ ...updated });
-      setHasJoined(true);
-    } else if (hasJoined) {
-      setMatch((prev) => ({
-        ...prev,
-        currentPlayers: Math.max(1, prev.currentPlayers - 1),
-        status: 'OPEN',
-      }));
-      setHasJoined(false);
+    setError('');
+    setLoading(true);
+
+    try {
+      if (!hasJoined && !isFull) {
+        const updated = await joinMatch(match.id);
+        if (updated) {
+          setHasJoined(true);
+          await loadMatch();
+        }
+      } else if (hasJoined) {
+        await leaveMatch(match.id);
+        setHasJoined(false);
+        await loadMatch();
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to update match status.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -49,16 +76,22 @@ export default function MatchDetailPage() {
         <span>Back to Discovery</span>
       </button>
 
+      {error && (
+        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-medium">
+          {error}
+        </div>
+      )}
+
       {/* Match Banner Card */}
       <div className="glass-panel rounded-3xl p-6 sm:p-8 border border-slate-800 space-y-6 relative overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-6">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <span className="px-3 py-1 rounded-full bg-emerald-950 text-emerald-400 text-xs font-bold border border-emerald-800">
-                {match.emoji} {match.sport} • {match.skillLevel}
+                {match.emoji || '🏸'} {match.sport_name || match.sport || 'Badminton'} • {match.skill_level || match.skillLevel || 'Any'}
               </span>
               <span className="px-2.5 py-1 rounded-lg bg-cyan-950 text-cyan-400 text-xs font-mono font-bold border border-cyan-800">
-                {match.matchType || 'Casual'}
+                {match.status || 'OPEN'}
               </span>
             </div>
 
@@ -69,18 +102,18 @@ export default function MatchDetailPage() {
             <div className="flex flex-wrap items-center gap-4 text-xs text-slate-300">
               <span className="flex items-center gap-1.5">
                 <Clock className="w-4 h-4 text-emerald-400" />
-                {match.date} at {match.time}
+                {match.scheduled_at ? new Date(match.scheduled_at).toLocaleString() : `${match.date || 'Today'} at ${match.time || '6:00 PM'}`}
               </span>
               <span className="flex items-center gap-1.5">
                 <MapPin className="w-4 h-4 text-cyan-400" />
-                {match.locationName} ({match.distanceKm} km away)
+                {match.location_name || match.locationName} ({match.distanceKm || match.distance_km || 1.2} km away)
               </span>
             </div>
           </div>
 
           <div className="text-right shrink-0">
             <div className="text-2xl font-extrabold font-heading text-white">
-              {match.currentPlayers} / {match.maxPlayers}
+              {currentPlayers} / {capacity}
             </div>
             <div className="text-xs font-mono text-slate-400 uppercase">PLAYERS REGISTERED</div>
           </div>
@@ -91,7 +124,7 @@ export default function MatchDetailPage() {
           <div className="flex justify-between text-xs font-mono text-slate-400">
             <span>PLAYER SLOTS</span>
             <span className={isFull ? 'text-red-400 font-bold' : 'text-emerald-400 font-bold'}>
-              {isFull ? 'LOBBY FULL' : `${match.maxPlayers - match.currentPlayers} SPOTS AVAILABLE`}
+              {isFull ? 'LOBBY FULL' : `${capacity - currentPlayers} SPOTS AVAILABLE`}
             </span>
           </div>
           <div className="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
@@ -99,7 +132,7 @@ export default function MatchDetailPage() {
               className={`h-full transition-all duration-300 ${
                 isFull ? 'bg-red-500' : 'bg-gradient-to-r from-emerald-400 to-cyan-400'
               }`}
-              style={{ width: `${(match.currentPlayers / match.maxPlayers) * 100}%` }}
+              style={{ width: `${(currentPlayers / capacity) * 100}%` }}
             />
           </div>
         </div>
@@ -108,39 +141,39 @@ export default function MatchDetailPage() {
         <div className="space-y-2 py-2">
           <h3 className="text-xs font-mono font-bold text-slate-400 uppercase">MATCH DETAILS & RULES</h3>
           <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-            {match.description}
+            {match.description || 'No detailed rules provided.'}
           </p>
         </div>
 
         {/* Participant List */}
         <div className="space-y-3 pt-4 border-t border-slate-800">
           <h3 className="text-xs font-mono font-bold text-slate-400 uppercase">
-            REGISTERED ATHLETES ({match.participants?.length || match.currentPlayers})
+            REGISTERED ATHLETES ({match.participants?.length || currentPlayers})
           </h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {(match.participants || []).map((p, idx) => (
               <div
-                key={p.id || idx}
-                onClick={() => navigate(`/app/athlete/${p.id || 'rahul'}`)}
+                key={p.participant_id || p.athlete_id || p.id || idx}
+                onClick={() => navigate(`/app/athlete/${p.athlete_id || p.id || 'rahul'}`)}
                 className="p-3 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-3 cursor-pointer hover:border-emerald-400 transition-colors"
               >
                 <div className="flex items-center gap-3">
                   <img
-                    src={p.avatar}
-                    alt={p.name}
+                    src={p.profile_image_url || p.avatar || '/athlete_rahul.jpg'}
+                    alt={p.display_name || p.name || 'Athlete'}
                     className="w-9 h-9 rounded-xl object-cover border border-slate-700"
                   />
                   <div>
                     <div className="flex items-center gap-1">
-                      <span className="font-bold text-xs text-white">{p.name}</span>
-                      {p.verified && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400/20" />}
+                      <span className="font-bold text-xs text-white">{p.display_name || p.name}</span>
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 fill-emerald-400/20" />
                     </div>
-                    <span className="text-[11px] text-slate-400">{p.sports?.[0]?.skillLevel || 'Intermediate'}</span>
+                    <span className="text-[11px] text-slate-400">{p.skill_level || 'Confirmed Player'}</span>
                   </div>
                 </div>
                 <span className="text-[10px] font-mono text-emerald-400 font-semibold bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
-                  {p.trust?.attendanceRatePct || 94}% Show-up
+                  {p.attendance_rate_pct || 94}% Show-up
                 </span>
               </div>
             ))}
@@ -158,7 +191,7 @@ export default function MatchDetailPage() {
           </button>
 
           <button
-            disabled={isFull && !hasJoined}
+            disabled={loading || (isFull && !hasJoined)}
             onClick={handleJoinToggle}
             className={`flex-1 py-3.5 rounded-xl font-extrabold text-sm transition-all cursor-pointer flex items-center justify-center gap-2 ${
               hasJoined
@@ -168,8 +201,8 @@ export default function MatchDetailPage() {
                 : 'bg-gradient-to-r from-emerald-400 to-cyan-400 text-slate-950 hover:opacity-95 shadow-lg shadow-emerald-500/25'
             }`}
           >
-            <span>{hasJoined ? 'Leave Match' : isFull ? 'MATCH FULL' : 'Join Match Now'}</span>
-            {!hasJoined && !isFull && <ArrowRight className="w-4 h-4 stroke-[3]" />}
+            <span>{loading ? 'Updating...' : hasJoined ? 'Leave Match' : isFull ? 'MATCH FULL' : 'Join Match Now'}</span>
+            {!loading && !hasJoined && !isFull && <ArrowRight className="w-4 h-4 stroke-[3]" />}
           </button>
         </div>
 
