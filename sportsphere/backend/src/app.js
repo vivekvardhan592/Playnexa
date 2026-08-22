@@ -8,6 +8,8 @@ import { errorHandler } from './middleware/errorHandler.js';
 import healthRoutes from './routes/healthRoutes.js';
 import authRoutes from './modules/auth/auth.routes.js';
 import athleteRoutes from './modules/athletes/athletes.routes.js';
+import discoveryRoutes from './modules/discovery/discovery.routes.js';
+import matchRoutes from './modules/matches/matches.routes.js';
 
 const app = express();
 
@@ -59,7 +61,14 @@ app.use('/api/auth', authRoutes);
 app.use('/api/v1/athletes', athleteRoutes);
 app.use('/api/athletes', athleteRoutes);
 
-// 9. Global Centralized Error Handler
+// 9. Phase 5 Discovery Engine Domain Routes
+app.use('/api/v1/discovery', discoveryRoutes);
+
+// 10. Phase 6 Matches Lobbies Domain Routes
+app.use('/api/v1/matches', matchRoutes);
+app.use('/api/matches', matchRoutes);
+
+// 11. Global Centralized Error Handler
 app.use(errorHandler);
 
 export default app;

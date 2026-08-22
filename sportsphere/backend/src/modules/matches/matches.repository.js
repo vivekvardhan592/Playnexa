@@ -1,62 +1,248 @@
 import { query, getTransactionClient } from '../../config/postgres.js';
 
-// Transaction-Safe Concurrency-Protected Match Join Engine
-export const joinMatchAtomicTransaction = async (matchId, athleteId) => {
+export const createMatch = async ({ creatorId, sportId, title, description, skillLevel = 'Any', longitude, latitude, locationName, city = 'Hyderabad', scheduledAt, capacity }) => {
+  const res = await query(
+    `INSERT INTO matches (creator_id, sport_id, title, description, skill_level, location, location_name, city, scheduled_at, capacity, current_players, status)
+     VALUES ($1, $2, $3, $4, $5, ST_SetSRID(ST_MakePoint($6, $7), 4326), $8, $9, $10, $11, 1, 'OPEN')
+     RETURNING id, title, sport_id, skill_level, location_name, city, scheduled_at, capacity, current_players, status, created_at;`,
+    [creatorId, sportId, title, description, skillLevel, longitude, latitude, locationName, city, scheduledAt, capacity]
+  );
+
+  const newMatch = res.rows[0];
+
+  // Creator automatically joins as first participant
+  await query(
+    `INSERT INTO match_participants (match_id, athlete_id, status)
+     VALUES ($1, $2, 'JOINED');`,
+    [newMatch.id, creatorId]
+  );
+
+  return newMatch;
+};
+
+export const getMatchById = async (matchId) => {
+  const res = await query(
+    `SELECT m.id, m.creator_id, m.sport_id, m.title, m.description, m.skill_level,
+            m.location_name, m.city, m.scheduled_at, m.capacity, m.current_players, m.status, m.created_at,
+            ST_Y(m.location::geometry) as latitude,
+            ST_X(m.location::geometry) as longitude,
+            s.name as sport_name, s.slug as sport_slug,
+            a.display_name as creator_name, a.profile_image_url as creator_avatar
+     FROM matches m
+     JOIN sports s ON m.sport_id = s.id
+     JOIN athletes a ON m.creator_id = a.id
+     WHERE m.id = $1;`,
+    [matchId]
+  );
+
+  const match = res.rows[0];
+  if (!match) return null;
+
+  // Fetch participants
+  const partRes = await query(
+    `SELECT mp.id as participant_id, mp.status, mp.joined_at,
+            a.id as athlete_id, a.display_name, a.profile_image_url, a.attendance_rate_pct
+     FROM match_participants mp
+     JOIN athletes a ON mp.athlete_id = a.id
+     WHERE mp.match_id = $1 AND mp.status = 'JOINED'
+     ORDER BY mp.joined_at ASC;`,
+    [matchId]
+  );
+
+  return {
+    ...match,
+    participants: partRes.rows,
+  };
+};
+
+export const findRadarMatches = async ({ longitude = 78.38, latitude = 17.44, radiusKm = 10, sport = 'All', status = 'OPEN', limit = 20 }) => {
+  let whereClauses = [
+    `ST_DWithin(m.location, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography, $3 * 1000)`
+  ];
+  let params = [longitude, latitude, radiusKm];
+  let paramIdx = 4;
+
+  if (sport && sport !== 'All') {
+    whereClauses.push(`s.name ILIKE $${paramIdx}`);
+    params.push(sport);
+    paramIdx++;
+  }
+
+  if (status && status !== 'All') {
+    whereClauses.push(`m.status = $${paramIdx}`);
+    params.push(status);
+    paramIdx++;
+  }
+
+  const whereSql = whereClauses.join(' AND ');
+
+  const res = await query(
+    `SELECT m.id, m.creator_id, m.sport_id, m.title, m.description, m.skill_level,
+            m.location_name, m.city, m.scheduled_at, m.capacity, m.current_players, m.status,
+            ST_Y(m.location::geometry) as latitude,
+            ST_X(m.location::geometry) as longitude,
+            (ST_Distance(m.location, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography) / 1000.0) as distance_km,
+            s.name as sport_name,
+            a.display_name as creator_name, a.profile_image_url as creator_avatar
+     FROM matches m
+     JOIN sports s ON m.sport_id = s.id
+     JOIN athletes a ON m.creator_id = a.id
+     WHERE ${whereSql}
+     ORDER BY distance_km ASC, m.scheduled_at ASC
+     LIMIT $${paramIdx};`,
+    [...params, limit]
+  );
+
+  return res.rows.map((row) => ({
+    ...row,
+    distanceKm: parseFloat(parseFloat(row.distance_km || 0).toFixed(1)),
+  }));
+};
+
+// ATOMIC TRANSACTION-SAFE JOIN OPERATION USING SELECT ... FOR UPDATE
+export const joinMatchAtomic = async (matchId, athleteId) => {
   const { client, query, release } = await getTransactionClient();
 
   try {
-    // 1. BEGIN Transaction
     await query('BEGIN;');
 
-    // 2. Lock match row using SELECT ... FOR UPDATE (Prevents race condition overbooking)
-    const matchRes = await query('SELECT * FROM matches WHERE id = $1 FOR UPDATE;', [matchId]);
+    // 1. SELECT FOR UPDATE - Row Locking on Match Entry
+    const matchRes = await query(
+      `SELECT id, capacity, current_players, status
+       FROM matches
+       WHERE id = $1
+       FOR UPDATE;`,
+      [matchId]
+    );
+
     const match = matchRes.rows[0];
-
     if (!match) {
-      await query('ROLLBACK;');
-      release();
-      throw new Error('MATCH_NOT_FOUND: Match lobby does not exist.');
+      const err = new Error('Match lobby not found.');
+      err.statusCode = 404;
+      err.code = 'MATCH_NOT_FOUND';
+      throw err;
     }
 
-    // 3. Check capacity limit
-    if (match.current_players >= match.capacity) {
-      await query('ROLLBACK;');
-      release();
-      throw new Error('MATCH_FULL: Capacity limit reached for this game lobby.');
+    if (match.status === 'CANCELLED' || match.status === 'COMPLETED') {
+      const err = new Error(`Match lobby is no longer active (${match.status}).`);
+      err.statusCode = 400;
+      err.code = 'MATCH_INACTIVE';
+      throw err;
     }
 
-    // 4. Check duplicate registration (UNIQUE constraint validation)
-    const participantRes = await query(
-      'SELECT id FROM match_participants WHERE match_id = $1 AND athlete_id = $2;',
+    // 2. Capacity Check - Invariant: current_players < capacity
+    if (match.current_players >= match.capacity || match.status === 'FULL') {
+      const err = new Error('Match lobby is already at full capacity.');
+      err.statusCode = 409;
+      err.code = 'MATCH_FULL';
+      throw err;
+    }
+
+    // 3. Duplicate Participant Check
+    const dupRes = await query(
+      `SELECT id, status FROM match_participants
+       WHERE match_id = $1 AND athlete_id = $2;`,
       [matchId, athleteId]
     );
 
-    if (participantRes.rows.length > 0) {
-      await query('ROLLBACK;');
-      release();
-      throw new Error('ALREADY_JOINED: You are already a registered participant in this match.');
+    if (dupRes.rows.length > 0 && dupRes.rows[0].status === 'JOINED') {
+      const err = new Error('Athlete is already a confirmed participant in this match.');
+      err.statusCode = 409;
+      err.code = 'DUPLICATE_PARTICIPANT';
+      throw err;
     }
 
-    // 5. Insert participant record
-    await query(
-      'INSERT INTO match_participants (match_id, athlete_id, status) VALUES ($1, $2, $3);',
-      [matchId, athleteId, 'JOINED']
-    );
+    // 4. Insert / Re-activate Participant
+    if (dupRes.rows.length > 0) {
+      await query(
+        `UPDATE match_participants SET status = 'JOINED', joined_at = CURRENT_TIMESTAMP
+         WHERE match_id = $1 AND athlete_id = $2;`,
+        [matchId, athleteId]
+      );
+    } else {
+      await query(
+        `INSERT INTO match_participants (match_id, athlete_id, status)
+         VALUES ($1, $2, 'JOINED');`,
+        [matchId, athleteId]
+      );
+    }
 
-    // 6. Update current_players count & status atomically
+    // 5. Increment Count & Update Status if Capacity Reached
     const newCount = match.current_players + 1;
     const newStatus = newCount >= match.capacity ? 'FULL' : 'OPEN';
 
-    const updatedMatchRes = await query(
-      'UPDATE matches SET current_players = $1, status = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *;',
+    const updateRes = await query(
+      `UPDATE matches
+       SET current_players = $1, status = $2, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $3
+       RETURNING id, current_players, capacity, status;`,
       [newCount, newStatus, matchId]
     );
 
-    // 7. COMMIT Transaction
     await query('COMMIT;');
     release();
 
-    return updatedMatchRes.rows[0];
+    return updateRes.rows[0];
+  } catch (error) {
+    await query('ROLLBACK;').catch(() => {});
+    release();
+    throw error;
+  }
+};
+
+export const leaveMatchAtomic = async (matchId, athleteId) => {
+  const { client, query, release } = await getTransactionClient();
+
+  try {
+    await query('BEGIN;');
+
+    const matchRes = await query(
+      `SELECT id, capacity, current_players, status, creator_id
+       FROM matches WHERE id = $1 FOR UPDATE;`,
+      [matchId]
+    );
+
+    const match = matchRes.rows[0];
+    if (!match) {
+      const err = new Error('Match lobby not found.');
+      err.statusCode = 404;
+      err.code = 'MATCH_NOT_FOUND';
+      throw err;
+    }
+
+    if (match.creator_id === athleteId) {
+      const err = new Error('Match creator cannot leave. Use match cancellation instead.');
+      err.statusCode = 400;
+      err.code = 'CREATOR_CANNOT_LEAVE';
+      throw err;
+    }
+
+    const partRes = await query(
+      `UPDATE match_participants SET status = 'LEFT'
+       WHERE match_id = $1 AND athlete_id = $2 AND status = 'JOINED'
+       RETURNING id;`,
+      [matchId, athleteId]
+    );
+
+    if (partRes.rows.length === 0) {
+      const err = new Error('Athlete is not an active participant in this match.');
+      err.statusCode = 400;
+      err.code = 'NOT_PARTICIPANT';
+      throw err;
+    }
+
+    const newCount = Math.max(1, match.current_players - 1);
+    const newStatus = match.status === 'FULL' && newCount < match.capacity ? 'OPEN' : match.status;
+
+    await query(
+      `UPDATE matches SET current_players = $1, status = $2, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $3;`,
+      [newCount, newStatus, matchId]
+    );
+
+    await query('COMMIT;');
+    release();
+    return { success: true, currentPlayers: newCount, status: newStatus };
   } catch (error) {
     await query('ROLLBACK;').catch(() => {});
     release();

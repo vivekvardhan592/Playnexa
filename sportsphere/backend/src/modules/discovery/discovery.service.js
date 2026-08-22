@@ -1,55 +1,50 @@
 import * as discoveryRepo from './discovery.repository.js';
 
-// Deterministic Match Scoring Engine
-export const calculateExplainableMatchScore = (athlete, targetSport, targetSkill, maxDistanceKm) => {
-  let score = 50; // Base score
-  const reasons = [];
+export const getNearbyAthletesService = async ({ longitude, latitude, radiusKm = 10, sport = 'All', skill = 'All', limit = 20, offset = 0 }) => {
+  const lon = parseFloat(longitude);
+  const lat = parseFloat(latitude);
+  const rad = parseFloat(radiusKm);
+  const lim = parseInt(limit, 10);
+  const off = parseInt(offset, 10);
 
-  // 1. Skill Compatibility (35%)
-  if (athlete.skill_level === targetSkill || athlete.level === targetSkill) {
-    score += 35;
-    reasons.push(`Exact skill level match (${targetSkill})`);
-  } else {
-    score += 20;
-    reasons.push(`Compatible skill level`);
+  if (isNaN(lon) || isNaN(lat)) {
+    const error = new Error('Invalid numeric longitude and latitude geographic query parameters.');
+    error.statusCode = 422;
+    error.code = 'INVALID_COORDINATES';
+    throw error;
   }
 
-  // 2. Distance Proximity (25%)
-  const dist = athlete.distance_km || athlete.distanceKm || 1.5;
-  if (dist <= 2) {
-    score += 25;
-    reasons.push(`Only ${dist.toFixed ? dist.toFixed(1) : dist} km away (Nearby neighborhood)`);
-  } else if (dist <= maxDistanceKm) {
-    score += 15;
-    reasons.push(`Within requested radius (${dist.toFixed ? dist.toFixed(1) : dist} km)`);
+  if (lon < -180 || lon > 180 || lat < -90 || lat > 90) {
+    const error = new Error('Geographic coordinates out of valid WGS84 bounds (-180..180, -90..90).');
+    error.statusCode = 422;
+    error.code = 'COORDINATES_OUT_OF_BOUNDS';
+    throw error;
   }
 
-  // 3. Reliability & Show-up Rating (15%)
-  const attendance = athlete.attendance_rate_pct || athlete.attendancePct || 94;
-  if (attendance >= 90) {
-    score += 15;
-    reasons.push(`Proven ${attendance}% attendance score`);
+  if (isNaN(rad) || rad < 1 || rad > 100) {
+    const error = new Error('Search radiusKm must be a number between 1 km and 100 km.');
+    error.statusCode = 422;
+    error.code = 'INVALID_RADIUS';
+    throw error;
   }
 
-  // Cap at 99%
-  const finalScore = Math.min(99, Math.max(60, score));
+  const athletes = await discoveryRepo.findNearbyAthletes({
+    longitude: lon,
+    latitude: lat,
+    radiusKm: rad,
+    sport,
+    skill,
+    limit: Math.min(lim || 20, 50),
+    offset: Math.max(off || 0, 0),
+  });
 
   return {
-    ...athlete,
-    matchScore: finalScore,
-    reasons,
+    athletes,
+    count: athletes.length,
+    filters: { longitude: lon, latitude: lat, radiusKm: rad, sport, skill, limit: lim, offset: off },
   };
 };
 
-export const discoverAthletes = async ({ longitude = 78.38, latitude = 17.44, radiusKm = 10, sport, skill }) => {
-  const radiusMeters = radiusKm * 1000;
-  const rawAthletes = await discoveryRepo.findNearbyAthletesPostGIS({ longitude, latitude, radiusMeters, sportName: sport, skillLevel: skill });
-
-  const scoredResults = rawAthletes.map((a) =>
-    calculateExplainableMatchScore(a, sport || 'Badminton', skill || 'Intermediate', radiusKm)
-  );
-
-  scoredResults.sort((a, b) => b.matchScore - a.matchScore);
-
-  return scoredResults;
+export const getExplainAnalyzeService = async ({ longitude = 78.38, latitude = 17.44, radiusKm = 10 }) => {
+  return await discoveryRepo.explainDiscoveryQuery({ longitude, latitude, radiusKm });
 };
