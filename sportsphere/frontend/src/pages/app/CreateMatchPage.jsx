@@ -18,15 +18,54 @@ export default function CreateMatchPage() {
     description: 'Casual badminton doubles session. Court reserved for 2 hours.',
     matchType: 'Casual',
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const item = SPORTS_LIST.find((s) => s.sport === formData.sport);
-    const newMatch = await createMatch({
-      ...formData,
-      emoji: item?.emoji || '🏸',
-    });
-    navigate(`/app/matches/${newMatch.id}`);
+    setError('');
+    setLoading(true);
+
+    try {
+      const item = SPORTS_LIST.find((s) => s.sport === formData.sport);
+
+      // Map sport to backend sportId
+      const sportIdMap = {
+        'Badminton': '22222222-2222-2222-2222-222222222222',
+        'Cricket': '11111111-1111-1111-1111-111111111111',
+        'Running': '33333333-3333-3333-3333-333333333333',
+        'Football': '44444444-4444-4444-4444-444444444444',
+      };
+
+      const payload = {
+        title: formData.title,
+        sport: formData.sport,
+        sportId: sportIdMap[formData.sport] || '22222222-2222-2222-2222-222222222222',
+        skillLevel: formData.skillLevel,
+        locationName: formData.locationName,
+        city: 'Hyderabad',
+        description: formData.description,
+        capacity: Number(formData.maxPlayers) || 4,
+        scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        longitude: 78.38,
+        latitude: 17.44,
+        emoji: item?.emoji || '🏸',
+      };
+
+      const newMatch = await createMatch(payload);
+
+      if (newMatch && (newMatch.id || newMatch.match?.id)) {
+        const matchId = newMatch.id || newMatch.match?.id;
+        navigate(`/app/matches/${matchId}`);
+      } else {
+        navigate('/app/matches');
+      }
+    } catch (err) {
+      console.error('Match creation error:', err.message);
+      setError(err.message || 'Failed to publish match to backend.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -39,6 +78,12 @@ export default function CreateMatchPage() {
         <ArrowLeft className="w-4 h-4" />
         <span>Back to Matches</span>
       </button>
+
+      {error && (
+        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-medium">
+          {error}
+        </div>
+      )}
 
       <div className="glass-panel rounded-3xl p-6 sm:p-8 border border-slate-800 space-y-6">
         <div className="space-y-1">
@@ -73,7 +118,7 @@ export default function CreateMatchPage() {
               <select
                 value={formData.sport}
                 onChange={(e) => setFormData({ ...formData, sport: e.target.value })}
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-emerald-400 focus:outline-none"
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-emerald-400 focus:outline-none cursor-pointer"
               >
                 {SPORTS_LIST.map((s) => (
                   <option key={s.sport} value={s.sport}>{s.emoji} {s.sport}</option>
@@ -86,7 +131,7 @@ export default function CreateMatchPage() {
               <select
                 value={formData.skillLevel}
                 onChange={(e) => setFormData({ ...formData, skillLevel: e.target.value })}
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-emerald-400 focus:outline-none"
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-emerald-400 focus:outline-none cursor-pointer"
               >
                 {SKILL_LEVELS.map((level) => (
                   <option key={level} value={level}>{level}</option>
@@ -151,7 +196,7 @@ export default function CreateMatchPage() {
               <select
                 value={formData.matchType}
                 onChange={(e) => setFormData({ ...formData, matchType: e.target.value })}
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-emerald-400 focus:outline-none"
+                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:border-emerald-400 focus:outline-none cursor-pointer"
               >
                 <option value="Casual">Casual Game</option>
                 <option value="Competitive">Competitive Match</option>
@@ -173,10 +218,11 @@ export default function CreateMatchPage() {
 
           <button
             type="submit"
+            disabled={loading}
             className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-400 to-cyan-400 text-slate-950 font-extrabold text-sm hover:opacity-95 shadow-lg shadow-emerald-500/25 transition-all cursor-pointer flex items-center justify-center gap-2"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
-            <span>Publish Match to Radar</span>
+            <span>{loading ? 'Publishing to Radar...' : 'Publish Match to Radar'}</span>
           </button>
         </form>
       </div>
