@@ -60,6 +60,9 @@ export const registerSocketHandlers = (io) => {
     // Client joins a room keyed by conversationId to receive DM events
     socket.on('chat:join', async ({ conversationId }) => {
       if (!conversationId) return;
+      if (!(await chatRepo.isConversationParticipant(conversationId, athleteId))) {
+        return socket.emit('chat:error', { message: 'Conversation access denied.' });
+      }
       socket.join(`conv:${conversationId}`);
       console.log(`[Socket.IO] ${name} joined room conv:${conversationId}`);
 
@@ -90,6 +93,9 @@ export const registerSocketHandlers = (io) => {
       }
 
       try {
+        if (!(await chatRepo.isConversationParticipant(conversationId, athleteId))) {
+          return socket.emit('chat:error', { message: 'Conversation access denied.' });
+        }
         // Persist to DB
         const message = await chatRepo.saveMessage({
           conversationId,

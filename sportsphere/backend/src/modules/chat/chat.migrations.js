@@ -3,7 +3,9 @@ import { pool } from '../../config/postgres.js';
 export const runChatMigrations = async () => {
   const client = await pool.connect();
   try {
-    // Create conversations table
+    // The first schema version created these tables without the participant and
+    // read-state columns. Add them before creating indexes so both old and new
+    // databases work.
     await client.query(`
       CREATE TABLE IF NOT EXISTS conversations (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -14,7 +16,12 @@ export const runChatMigrations = async () => {
         CHECK (participant_one < participant_two)
       );
     `);
+    await client.query(`
+      ALTER TABLE conversations ADD COLUMN IF NOT EXISTS participant_one UUID REFERENCES athletes(id) ON DELETE CASCADE;
+      ALTER TABLE conversations ADD COLUMN IF NOT EXISTS participant_two UUID REFERENCES athletes(id) ON DELETE CASCADE;
+    `);
 
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS uq_conversations_participants ON conversations(participant_one, participant_two) WHERE participant_one IS NOT NULL AND participant_two IS NOT NULL;`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_conversations_p1 ON conversations(participant_one);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_conversations_p2 ON conversations(participant_two);`);
 
@@ -29,6 +36,7 @@ export const runChatMigrations = async () => {
         created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
     `);
+    await client.query(`ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_read BOOLEAN NOT NULL DEFAULT false;`);
 
     await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_conversation_created ON messages(conversation_id, created_at DESC);`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_messages_unread ON messages(conversation_id, is_read) WHERE is_read = false;`);

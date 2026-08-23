@@ -75,3 +75,8 @@ export const getMeService = async (userId) => {
   }
   return user;
 };
+
+export const updatePasswordService = async (email, password) => {
+  const passwordHash = await bcrypt.hash(password, 10);
+  return authRepo.updatePasswordByEmail(email, passwordHash);
+};

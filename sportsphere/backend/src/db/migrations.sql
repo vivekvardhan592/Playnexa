@@ -143,8 +143,12 @@ CREATE INDEX IF NOT EXISTS idx_connections_lookup ON connections(requester_id, r
 -- 11. CONVERSATIONS & MESSAGES Tables (Real-Time Chat Persistence)
 CREATE TABLE IF NOT EXISTS conversations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    participant_one UUID NOT NULL REFERENCES athletes(id) ON DELETE CASCADE,
+    participant_two UUID NOT NULL REFERENCES athletes(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_conversation_participants UNIQUE (participant_one, participant_two),
+    CONSTRAINT ordered_conversation_participants CHECK (participant_one < participant_two)
 );
 
 CREATE TABLE IF NOT EXISTS messages (
@@ -152,7 +156,7 @@ CREATE TABLE IF NOT EXISTS messages (
     conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
     sender_id UUID NOT NULL REFERENCES athletes(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
-    read_at TIMESTAMP WITH TIME ZONE,
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -170,31 +174,28 @@ CREATE TABLE IF NOT EXISTS reviews (
     CONSTRAINT unique_match_review UNIQUE (match_id, reviewer_id, reviewee_id)
 );
 
--- 13. POSTS & COMMENTS (Community Feed)
-CREATE TABLE IF NOT EXISTS posts (
+-- 13. COMMUNITY POSTS
+CREATE TABLE IF NOT EXISTS community_posts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    author_id UUID NOT NULL REFERENCES athletes(id) ON DELETE CASCADE,
+    athlete_id UUID NOT NULL REFERENCES athletes(id) ON DELETE CASCADE,
     content TEXT NOT NULL,
-    post_type VARCHAR(50) DEFAULT 'Achievement 🏆',
-    fire_count INT DEFAULT 0,
-    trophy_count INT DEFAULT 0,
-    heart_count INT DEFAULT 0,
+    likes_count INT NOT NULL DEFAULT 0,
+    comments_count INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 14. NOTIFICATIONS Table
 CREATE TABLE IF NOT EXISTS notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    athlete_id UUID NOT NULL REFERENCES athletes(id) ON DELETE CASCADE,
     type VARCHAR(50) NOT NULL,
     title VARCHAR(200) NOT NULL,
-    subtitle TEXT,
-    data JSONB DEFAULT '{}'::jsonb,
-    read_at TIMESTAMP WITH TIME ZONE,
+    body TEXT,
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, read_at);
+CREATE INDEX IF NOT EXISTS idx_notifications_athlete ON notifications(athlete_id, is_read);
 
 -- 15. AUDIT_LOGS Table
 CREATE TABLE IF NOT EXISTS audit_logs (

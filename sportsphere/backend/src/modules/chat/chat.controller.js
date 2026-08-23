@@ -33,3 +33,14 @@ export const getMessages = async (req, res, next) => {
     next(err);
   }
 };
+
+// Backwards-compatible REST endpoint; real-time clients normally use Socket.IO.
+export const sendMessage = async (req, res, next) => {
+  try {
+    const { conversationId, content } = req.body;
+    const message = await chatService.sendMessageService(conversationId, req.user.athleteId, content);
+    return sendSuccess(res, { message }, 'Message sent.', 201);
+  } catch (err) {
+    next(err);
+  }
+};

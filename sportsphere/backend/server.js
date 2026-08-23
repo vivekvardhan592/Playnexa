@@ -3,6 +3,7 @@ import { Server as SocketIOServer } from 'socket.io';
 import app from './src/app.js';
 import { env } from './src/config/env.js';
 import { connectPostgres, closePostgresPool } from './src/config/postgres.js';
+import { runCoreMigrations } from './src/db/core.migrations.js';
 import { runChatMigrations } from './src/modules/chat/chat.migrations.js';
 import { registerSocketHandlers } from './src/modules/chat/chat.socket.js';
 
@@ -27,6 +28,7 @@ registerSocketHandlers(io);
 // 4. Connect PostgreSQL and run boot-time migrations
 const bootstrap = async () => {
   await connectPostgres();
+  await runCoreMigrations();
   await runChatMigrations();
 };
 

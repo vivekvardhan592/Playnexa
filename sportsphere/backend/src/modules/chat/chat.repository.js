@@ -35,6 +35,14 @@ export const saveMessage = async ({ conversationId, senderId, content }) => {
   return res.rows[0];
 };
 
+export const isConversationParticipant = async (conversationId, athleteId) => {
+  const res = await query(
+    `SELECT 1 FROM conversations WHERE id = $1 AND ($2 = participant_one OR $2 = participant_two);`,
+    [conversationId, athleteId]
+  );
+  return res.rowCount > 0;
+};
+
 // Retrieve paginated message history for a conversation
 export const getMessageHistory = async (conversationId, limit = 50, before = null) => {
   let sql, params;

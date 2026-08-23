@@ -40,8 +40,8 @@ export default function ForgotPasswordPage() {
       setError('Passwords do not match.');
       return;
     }
-    if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters long.');
+    if (newPassword.length < 8) {
+      setError('Password must be at least 8 characters long.');
       return;
     }
 
@@ -138,7 +138,7 @@ export default function ForgotPasswordPage() {
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
                 className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:border-emerald-400 focus:outline-none"
-                placeholder="Minimum 6 characters"
+                placeholder="Minimum 8 characters"
               />
             </div>
           </div>

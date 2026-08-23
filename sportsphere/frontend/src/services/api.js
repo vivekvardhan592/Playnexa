@@ -30,39 +30,39 @@ async function fetchAPI(endpoint, options = {}) {
 
 // === Auth Services ===
 export async function apiLogin(email, password) {
-  return await fetchAPI('/auth/login', {
+  return await fetchAPI('/v1/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });
 }
 
 export async function apiRegister(data) {
-  return await fetchAPI('/auth/register', {
+  return await fetchAPI('/v1/auth/register', {
     method: 'POST',
     body: JSON.stringify(data),
   });
 }
 
 export async function apiForgotPassword(email) {
-  return await fetchAPI('/auth/forgot-password', {
+  return await fetchAPI('/v1/auth/forgot-password', {
     method: 'POST',
     body: JSON.stringify({ email }),
   });
 }
 
 export async function apiResetPassword(email, otpCode, newPassword) {
-  return await fetchAPI('/auth/reset-password', {
+  return await fetchAPI('/v1/auth/reset-password', {
     method: 'POST',
     body: JSON.stringify({ email, otpCode, newPassword }),
   });
 }
 
 export async function apiLogout() {
-  return await fetchAPI('/auth/logout', { method: 'POST' });
+  return await fetchAPI('/v1/auth/logout', { method: 'POST' });
 }
 
 export async function apiGetProfile() {
-  return await fetchAPI('/auth/profile');
+  return await fetchAPI('/v1/auth/me');
 }
 
 // === Discovery Services (Phase 5 Backend) ===

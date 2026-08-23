@@ -10,5 +10,6 @@ router.use(requireAuth);
 router.get('/conversations', chatController.getConversations);
 router.post('/conversations', chatController.startConversation);
 router.get('/conversations/:conversationId/messages', chatController.getMessages);
+router.post('/send', chatController.sendMessage);
 
 export default router;

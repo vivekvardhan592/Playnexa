@@ -17,6 +17,14 @@ export const findUserById = async (userId) => {
   return res.rows[0] || null;
 };
 
+export const updatePasswordByEmail = async (email, passwordHash) => {
+  const res = await query(
+    `UPDATE users SET password_hash = $2, updated_at = CURRENT_TIMESTAMP WHERE email = $1 RETURNING id;`,
+    [email.toLowerCase().trim(), passwordHash]
+  );
+  return res.rows[0] || null;
+};
+
 export const createUserWithAthleteProfile = async ({ email, hashedPassword, role = 'ATHLETE', name, city = 'Hyderabad', area = 'Gachibowli' }) => {
   const { client, query, release } = await getTransactionClient();
 
