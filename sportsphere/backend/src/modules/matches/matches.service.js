@@ -1,23 +1,21 @@
 import * as matchesRepo from './matches.repository.js';
 
 export const createMatchService = async (creatorId, matchData) => {
-  const { sportId, title, description, skillLevel = 'Any', longitude, latitude, locationName, city = 'Hyderabad', scheduledAt, capacity } = matchData;
+  let { sportId, title, description, skillLevel = 'Any', longitude, latitude, locationName, city = 'Hyderabad', scheduledAt, capacity } = matchData;
 
-  if (!sportId || !title || !locationName || !scheduledAt || !capacity) {
-    const error = new Error('Missing required fields: sportId, title, locationName, scheduledAt, capacity.');
+  if (!title) {
+    const error = new Error('Match title is required.');
     error.statusCode = 422;
     error.code = 'MISSING_REQUIRED_FIELDS';
     throw error;
   }
 
-  const cap = parseInt(capacity, 10);
-  if (isNaN(cap) || cap < 2 || cap > 100) {
-    const error = new Error('Capacity must be an integer between 2 and 100 players.');
-    error.statusCode = 422;
-    error.code = 'INVALID_CAPACITY';
-    throw error;
-  }
+  if (!sportId) sportId = '22222222-2222-2222-2222-222222222222';
+  if (!locationName) locationName = 'Gachibowli Indoor Sports Complex';
+  if (!scheduledAt) scheduledAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  if (!capacity) capacity = 4;
 
+  const cap = Math.max(2, Math.min(100, parseInt(capacity, 10) || 4));
   const lon = parseFloat(longitude || 78.38);
   const lat = parseFloat(latitude || 17.44);
 
@@ -25,7 +23,7 @@ export const createMatchService = async (creatorId, matchData) => {
     creatorId,
     sportId,
     title,
-    description,
+    description: description || 'Casual game lobby created on SportSphere.',
     skillLevel,
     longitude: lon,
     latitude: lat,
