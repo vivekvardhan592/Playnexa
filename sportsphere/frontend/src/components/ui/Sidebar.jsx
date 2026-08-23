@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   Home, Search, Swords, Calendar, MessageSquare, Users, User,
-  Bell, Settings, LogOut, Shield, ChevronLeft, ChevronRight, Sparkles
+  Bell, Settings, LogOut, Shield, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -22,10 +22,9 @@ const SECONDARY_ITEMS = [
   { path: '/app/settings', icon: Settings, label: 'Settings' },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({ collapsed, onToggle }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [collapsed, setCollapsed] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -117,7 +116,7 @@ export default function Sidebar() {
         )}
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all w-full"
+          className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all w-full cursor-pointer"
         >
           <LogOut className="w-4.5 h-4.5 shrink-0" />
           {!collapsed && <span>Logout</span>}
@@ -126,8 +125,8 @@ export default function Sidebar() {
 
       {/* Collapse Toggle */}
       <button
-        onClick={() => setCollapsed(!collapsed)}
-        className="absolute top-1/2 -right-3 w-6 h-6 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition-all z-50"
+        onClick={onToggle}
+        className="absolute top-1/2 -right-3 w-6 h-6 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition-all z-50 cursor-pointer"
       >
         {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
       </button>

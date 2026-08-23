@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/ui/Sidebar';
 import BottomNav from '../components/ui/BottomNav';
@@ -9,16 +9,17 @@ import { Bell, Plus, Search, MapPin, Sparkles } from 'lucide-react';
 export default function AppLayout() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
     <div className="min-h-screen bg-[#080a0f] text-slate-100 font-['Plus_Jakarta_Sans',sans-serif] flex relative overflow-x-hidden">
       {/* Desktop Sidebar */}
       <div className="hidden md:block">
-        <Sidebar />
+        <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 md:pl-60 flex flex-col min-w-0 pb-20 md:pb-8">
+      {/* Main Content Area — Dynamic left padding matching sidebar state */}
+      <div className={`flex-1 transition-all duration-300 ease-out ${collapsed ? 'md:pl-[72px]' : 'md:pl-[240px]'} flex flex-col min-w-0 pb-20 md:pb-8`}>
         
         {/* Top Header Bar */}
         <header className="sticky top-0 z-30 bg-[#080a0f]/80 backdrop-blur-xl border-b border-slate-800/80 px-4 sm:px-8 py-3.5 flex items-center justify-between gap-4">
