@@ -6,6 +6,7 @@ import { connectPostgres, closePostgresPool } from './src/config/postgres.js';
 import { runCoreMigrations } from './src/db/core.migrations.js';
 import { runChatMigrations } from './src/modules/chat/chat.migrations.js';
 import { registerSocketHandlers } from './src/modules/chat/chat.socket.js';
+import { seedFullDatabase } from './src/db/seedFullData.js';
 
 // 1. Create HTTP server from Express app
 const server = http.createServer(app);
@@ -25,11 +26,12 @@ const io = new SocketIOServer(server, {
 // 3. Register all Socket.IO event handlers
 registerSocketHandlers(io);
 
-// 4. Connect PostgreSQL and run boot-time migrations
+// 4. Connect PostgreSQL and run boot-time migrations & seed data
 const bootstrap = async () => {
   await connectPostgres();
   await runCoreMigrations();
   await runChatMigrations();
+  await seedFullDatabase();
 };
 
 bootstrap().catch((err) => {
