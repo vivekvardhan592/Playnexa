@@ -8,54 +8,6 @@ export const findSportIdByName = async (sportName) => {
   return res.rows[0]?.id || null;
 };
 
-export const createMatch = async ({ creatorId, sportId, title, description, skillLevel = 'Any', longitude, latitude, locationName, city = 'Hyderabad', scheduledAt, capacity }) => {
-  const res = await query(
-    `INSERT INTO matches (creator_id, sport_id, title, description, skill_level, location, location_name, city, scheduled_at, capacity, current_players, status)
-     VALUES ($1, $2, $3, $4, $5, ST_SetSRID(ST_MakePoint($6, $7), 4326), $8, $9, $10, $11, 1, 'OPEN')
-     RETURNING id, title, sport_id, skill_level, location_name, city, scheduled_at, capacity, current_players, status, created_at;`,
-    [creatorId, sportId, title, description, skillLevel, longitude, latitude, locationName, city, scheduledAt, capacity]
-  );
-
-  const newMatch = res.rows[0];
-
-  // Creator automatically joins as first participant with HOST / JOINED status
-  await query(
-    `INSERT INTO match_participants (match_id, athlete_id, status)
-     VALUES ($1, $2, 'JOINED');`,
-    [newMatch.id, creatorId]
-  );
-
-  // Notify nearby athletes via PostGIS spatial discovery query
-  notifyNearbyAthletes(newMatch.id, creatorId, longitude, latitude, 10, title, locationName);
-
-  return newMatch;
-};
-
-export const notifyNearbyAthletes = async (matchId, creatorId, longitude, latitude, radiusKm = 10, title, locationName) => {
-  try {
-    const nearby = await query(
-      `SELECT a.id, a.display_name
-       FROM athletes a
-       WHERE ST_DWithin(a.location, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography, $3 * 1000)
-         AND a.id != $4;`,
-      [longitude, latitude, radiusKm, creatorId]
-    );
-
-    for (const ath of nearby.rows) {
-      await query(
-        `INSERT INTO notifications (athlete_id, type, title, body)
-         VALUES ($1, 'MATCH_RADAR', 'New Match Ping nearby!', $2);`,
-        [ath.id, `A new match "${title}" was posted near ${locationName}`]
-      ).catch(() => {});
-    }
-
-    return nearby.rows;
-  } catch (err) {
-    console.error('[Notify Nearby Error]:', err.message);
-    return [];
-  }
-};
-
 export const getMatchById = async (matchId) => {
   const res = await query(
     `SELECT m.id, m.creator_id, m.sport_id, m.title, m.description, m.skill_level,
@@ -87,16 +39,81 @@ export const getMatchById = async (matchId) => {
 
   return {
     ...match,
-    participants: partRes.rows,
+    sport: match.sport_name,
+    skillLevel: match.skill_level,
+    locationName: match.location_name,
+    currentPlayers: match.current_players,
+    maxPlayers: match.capacity,
+    creator: {
+      id: match.creator_id,
+      name: match.creator_name,
+      avatar: match.creator_avatar || '/athlete_rahul.jpg',
+    },
+    participants: partRes.rows.map((p) => ({
+      id: p.athlete_id,
+      athlete_id: p.athlete_id,
+      name: p.display_name,
+      avatar: p.profile_image_url || '/athlete_rahul.jpg',
+    })),
   };
 };
 
+export const createMatch = async ({ creatorId, sportId, title, description, skillLevel = 'Any', longitude = 78.38, latitude = 17.44, locationName, city = 'Hyderabad', scheduledAt, capacity }) => {
+  const lon = Number.isFinite(longitude) ? longitude : 78.38;
+  const lat = Number.isFinite(latitude) ? latitude : 17.44;
+
+  const res = await query(
+    `INSERT INTO matches (creator_id, sport_id, title, description, skill_level, location, location_name, city, scheduled_at, capacity, current_players, status)
+     VALUES ($1, $2, $3, $4, $5, ST_SetSRID(ST_MakePoint($6, $7), 4326), $8, $9, $10, $11, 1, 'OPEN')
+     RETURNING id;`,
+    [creatorId, sportId, title, description, skillLevel, lon, lat, locationName, city, scheduledAt, capacity]
+  );
+
+  const matchId = res.rows[0].id;
+
+  // Creator automatically joins as first participant with HOST / JOINED status
+  await query(
+    `INSERT INTO match_participants (match_id, athlete_id, status)
+     VALUES ($1, $2, 'JOINED')
+     ON CONFLICT (match_id, athlete_id) DO UPDATE SET status = 'JOINED';`,
+    [matchId, creatorId]
+  );
+
+  // Notify nearby athletes via PostGIS spatial discovery query
+  notifyNearbyAthletes(matchId, creatorId, lon, lat, 10, title, locationName);
+
+  return getMatchById(matchId);
+};
+
+export const notifyNearbyAthletes = async (matchId, creatorId, longitude, latitude, radiusKm = 10, title, locationName) => {
+  try {
+    const nearby = await query(
+      `SELECT a.id, a.display_name
+       FROM athletes a
+       WHERE ST_DWithin(a.location, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography, $3 * 1000)
+         AND a.id != $4;`,
+      [longitude, latitude, radiusKm, creatorId]
+    );
+
+    for (const ath of nearby.rows) {
+      await query(
+        `INSERT INTO notifications (athlete_id, type, title, body)
+         VALUES ($1, 'MATCH_RADAR', 'New Match Ping nearby!', $2);`,
+        [ath.id, `A new match "${title}" was posted near ${locationName}`]
+      ).catch(() => {});
+    }
+
+    return nearby.rows;
+  } catch (err) {
+    console.error('[Notify Nearby Error]:', err.message);
+    return [];
+  }
+};
+
 export const findRadarMatches = async ({ longitude = 78.38, latitude = 17.44, radiusKm = 10, sport = 'All', status = 'OPEN', limit = 20 }) => {
-  let whereClauses = [
-    `ST_DWithin(m.location, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography, $3 * 1000)`
-  ];
-  let params = [longitude, latitude, radiusKm];
-  let paramIdx = 4;
+  let whereClauses = [];
+  let params = [];
+  let paramIdx = 1;
 
   if (sport && sport !== 'All') {
     whereClauses.push(`s.name ILIKE $${paramIdx}`);
@@ -110,29 +127,62 @@ export const findRadarMatches = async ({ longitude = 78.38, latitude = 17.44, ra
     paramIdx++;
   }
 
-  const whereSql = whereClauses.join(' AND ');
+  const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
-  const res = await query(
-    `SELECT m.id, m.creator_id, m.sport_id, m.title, m.description, m.skill_level,
-            m.location_name, m.city, m.scheduled_at, m.capacity, m.current_players, m.status,
-            ST_Y(m.location::geometry) as latitude,
-            ST_X(m.location::geometry) as longitude,
-            (ST_Distance(m.location, ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography) / 1000.0) as distance_km,
-            s.name as sport_name,
-            a.display_name as creator_name, a.profile_image_url as creator_avatar
-     FROM matches m
-     JOIN sports s ON m.sport_id = s.id
-     JOIN athletes a ON m.creator_id = a.id
-     WHERE ${whereSql}
-     ORDER BY distance_km ASC, m.scheduled_at ASC
-     LIMIT $${paramIdx};`,
-    [...params, limit]
+  const sql = `
+    SELECT m.id, m.creator_id, m.sport_id, m.title, m.description, m.skill_level,
+           m.location_name, m.city, m.scheduled_at, m.capacity, m.current_players, m.status,
+           ST_Y(m.location::geometry) as latitude,
+           ST_X(m.location::geometry) as longitude,
+           1.2 as distance_km,
+           s.name as sport_name,
+           a.display_name as creator_name, a.profile_image_url as creator_avatar
+    FROM matches m
+    JOIN sports s ON m.sport_id = s.id
+    JOIN athletes a ON m.creator_id = a.id
+    ${whereSql}
+    ORDER BY m.created_at DESC
+    LIMIT $${paramIdx};
+  `;
+
+  const res = await query(sql, [...params, limit]);
+
+  // Map each row with participants and creator object
+  const matches = await Promise.all(
+    res.rows.map(async (row) => {
+      const partRes = await query(
+        `SELECT mp.athlete_id, a.display_name, a.profile_image_url
+         FROM match_participants mp
+         JOIN athletes a ON mp.athlete_id = a.id
+         WHERE mp.match_id = $1 AND mp.status = 'JOINED'
+         ORDER BY mp.joined_at ASC;`,
+        [row.id]
+      );
+
+      return {
+        ...row,
+        sport: row.sport_name,
+        skillLevel: row.skill_level,
+        locationName: row.location_name,
+        currentPlayers: row.current_players,
+        maxPlayers: row.capacity,
+        distanceKm: parseFloat(parseFloat(row.distance_km || 1.2).toFixed(1)),
+        creator: {
+          id: row.creator_id,
+          name: row.creator_name,
+          avatar: row.creator_avatar || '/athlete_rahul.jpg',
+        },
+        participants: partRes.rows.map((p) => ({
+          id: p.athlete_id,
+          athlete_id: p.athlete_id,
+          name: p.display_name,
+          avatar: p.profile_image_url || '/athlete_rahul.jpg',
+        })),
+      };
+    })
   );
 
-  return res.rows.map((row) => ({
-    ...row,
-    distanceKm: parseFloat(parseFloat(row.distance_km || 0).toFixed(1)),
-  }));
+  return matches;
 };
 
 // ATOMIC TRANSACTION-SAFE JOIN OPERATION USING SELECT ... FOR UPDATE
@@ -207,18 +257,17 @@ export const joinMatchAtomic = async (matchId, athleteId) => {
     const newCount = match.current_players + 1;
     const newStatus = newCount >= match.capacity ? 'FULL' : 'OPEN';
 
-    const updateRes = await query(
+    await query(
       `UPDATE matches
        SET current_players = $1, status = $2, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $3
-       RETURNING id, current_players, capacity, status;`,
+       WHERE id = $3;`,
       [newCount, newStatus, matchId]
     );
 
     await query('COMMIT;');
     release();
 
-    return updateRes.rows[0];
+    return getMatchById(matchId);
   } catch (error) {
     await query('ROLLBACK;').catch(() => {});
     release();
@@ -278,7 +327,7 @@ export const leaveMatchAtomic = async (matchId, athleteId) => {
 
     await query('COMMIT;');
     release();
-    return { success: true, currentPlayers: newCount, status: newStatus };
+    return getMatchById(matchId);
   } catch (error) {
     await query('ROLLBACK;').catch(() => {});
     release();
