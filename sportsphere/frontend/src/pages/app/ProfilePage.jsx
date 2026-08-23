@@ -3,6 +3,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import EditProfileModal from '../../components/EditProfileModal';
 import { CheckCircle2, ShieldCheck, MapPin, Calendar, Trophy, Flame, Zap, Award, Edit3 } from 'lucide-react';
 
+import { updateAthleteProfile } from '../../services/api';
+
 export default function ProfilePage() {
   const { user, updateUser } = useAuth();
   const [activeSportIndex, setActiveSportIndex] = useState(0);
@@ -11,7 +13,13 @@ export default function ProfilePage() {
   const activeSportObj = user?.sports?.[activeSportIndex] || user?.sports?.[0];
 
   const handleSaveProfile = async (updatedFields) => {
-    updateUser(updatedFields);
+    try {
+      const serverProfile = await updateAthleteProfile(updatedFields);
+      updateUser(serverProfile || updatedFields);
+    } catch (err) {
+      console.error('Profile update failed:', err.message);
+      updateUser(updatedFields);
+    }
   };
 
   return (

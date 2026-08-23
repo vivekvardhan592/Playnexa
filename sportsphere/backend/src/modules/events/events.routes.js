@@ -7,7 +7,8 @@ const router = express.Router();
 
 router.get('/', async (req, res, next) => {
   try {
-    const events = await eventsRepo.getAllEvents();
+    const athleteId = req.user?.athleteId || null;
+    const events = await eventsRepo.getAllEvents(athleteId);
     return sendSuccess(res, { events, count: events.length }, 'Events list retrieved.');
   } catch (err) {
     next(err);
@@ -21,6 +22,24 @@ router.post('/create', requireAuth, async (req, res, next) => {
       creatorId: req.user.athleteId,
     });
     return sendSuccess(res, { event: newEvent }, 'Event created successfully.', 201);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/:id/register', requireAuth, async (req, res, next) => {
+  try {
+    const result = await eventsRepo.registerForEvent(req.params.id, req.user.athleteId);
+    return sendSuccess(res, result, 'Registered for event in database.');
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/:id/leave', requireAuth, async (req, res, next) => {
+  try {
+    const result = await eventsRepo.leaveEvent(req.params.id, req.user.athleteId);
+    return sendSuccess(res, result, 'Unregistered from event in database.');
   } catch (err) {
     next(err);
   }

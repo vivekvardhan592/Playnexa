@@ -251,6 +251,27 @@ export async function getEventById(id) {
   return EVENTS.find((e) => e.id === id) || EVENTS[0];
 }
 
+export async function registerForEvent(eventId) {
+  const apiData = await fetchAPI(`/v1/events/${eventId}/register`, { method: 'POST' });
+  if (apiData) return apiData;
+  return { success: true, registered: true };
+}
+
+export async function leaveEvent(eventId) {
+  const apiData = await fetchAPI(`/v1/events/${eventId}/leave`, { method: 'POST' });
+  if (apiData) return apiData;
+  return { success: true, registered: false };
+}
+
+export async function updateAthleteProfile(data) {
+  const apiData = await fetchAPI('/v1/athletes/me', {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+  if (apiData && apiData.athlete) return apiData.athlete;
+  return data;
+}
+
 // === Teams Services ===
 export async function getTeams() {
   const apiData = await fetchAPI('/v1/teams');
