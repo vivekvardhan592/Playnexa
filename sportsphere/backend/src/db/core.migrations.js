@@ -114,6 +114,36 @@ export const runCoreMigrations = async () => {
       CREATE INDEX IF NOT EXISTS idx_community_posts_created ON community_posts(created_at DESC);
     `);
 
+    // Required reference data. The application resolves sport UUIDs by name,
+    // so this is safe to run repeatedly and avoids frontend seed-ID coupling.
+    await client.query(`
+      INSERT INTO sports (name, slug, category) VALUES
+        ('Badminton', 'badminton', 'Racket'),
+        ('Cricket', 'cricket', 'Team'),
+        ('Running', 'running', 'Endurance'),
+        ('Football', 'football', 'Team'),
+        ('Chess', 'chess', 'Mind'),
+        ('Swimming', 'swimming', 'Water')
+      ON CONFLICT (name) DO NOTHING;
+    `);
+
+    // Keep the advertised local demo login usable without relying on a
+    // separate manual seed command. This account is only created outside prod.
+    if (process.env.NODE_ENV !== 'production') {
+      await client.query(`
+        INSERT INTO users (email, password_hash, role)
+        VALUES ('vivek@sportsphere.com', $1, 'ATHLETE')
+        ON CONFLICT (email) DO NOTHING;
+      `, ['$2b$10$3iGRZlOrtMSTfTE08acbw.bq22yEMmJvDAzH9znJ83Zl8tt/tjnUm']);
+      await client.query(`
+        INSERT INTO athletes (user_id, display_name, city, area, location)
+        SELECT id, 'Vivek Kumar', 'Hyderabad', 'Gachibowli',
+               ST_SetSRID(ST_MakePoint(78.38, 17.44), 4326)
+        FROM users WHERE email = 'vivek@sportsphere.com'
+        ON CONFLICT (user_id) DO NOTHING;
+      `);
+    }
+
     // Upgrade databases that were created with the original, incompatible DDL.
     await client.query(`
       ALTER TABLE notifications ADD COLUMN IF NOT EXISTS athlete_id UUID REFERENCES athletes(id) ON DELETE CASCADE;

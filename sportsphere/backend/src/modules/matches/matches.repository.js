@@ -1,5 +1,13 @@
 import { query, getTransactionClient } from '../../config/postgres.js';
 
+export const findSportIdByName = async (sportName) => {
+  const res = await query(
+    `SELECT id FROM sports WHERE lower(name) = lower($1) LIMIT 1;`,
+    [sportName]
+  );
+  return res.rows[0]?.id || null;
+};
+
 export const createMatch = async ({ creatorId, sportId, title, description, skillLevel = 'Any', longitude, latitude, locationName, city = 'Hyderabad', scheduledAt, capacity }) => {
   const res = await query(
     `INSERT INTO matches (creator_id, sport_id, title, description, skill_level, location, location_name, city, scheduled_at, capacity, current_players, status)

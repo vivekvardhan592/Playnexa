@@ -26,9 +26,17 @@ export default function LoginPage() {
     }
   };
 
-  const handleDemoAccess = () => {
-    demoLogin();
-    navigate('/app');
+  const handleDemoAccess = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      await demoLogin();
+      navigate('/app');
+    } catch (err) {
+      setError(err.message || 'Demo account could not be started.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -48,6 +56,7 @@ export default function LoginPage() {
       <div>
         <button
           onClick={handleDemoAccess}
+          disabled={loading}
           className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-500/20 via-teal-500/20 to-cyan-500/20 border border-emerald-500/40 text-emerald-300 font-bold text-xs hover:border-emerald-400 transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/10 cursor-pointer"
         >
           <Sparkles className="w-4 h-4 text-emerald-400 fill-emerald-400" />

@@ -90,11 +90,7 @@ export function AuthProvider({ children }) {
     return false;
   };
 
-  const demoLogin = () => {
-    setUser(DEMO_USER);
-    setIsAuthenticated(true);
-    return true;
-  };
+  const demoLogin = async () => login('vivek@sportsphere.com', 'password123');
 
   const signup = async (data) => {
     const res = await apiRegister(data);

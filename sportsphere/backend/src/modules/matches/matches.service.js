@@ -1,7 +1,7 @@
 import * as matchesRepo from './matches.repository.js';
 
 export const createMatchService = async (creatorId, matchData) => {
-  let { sportId, title, description, skillLevel = 'Any', longitude, latitude, locationName, city = 'Hyderabad', scheduledAt, capacity } = matchData;
+  let { sportId, sport, title, description, skillLevel = 'Any', longitude, latitude, locationName, city = 'Hyderabad', scheduledAt, capacity } = matchData;
 
   if (!title) {
     const error = new Error('Match title is required.');
@@ -10,7 +10,15 @@ export const createMatchService = async (creatorId, matchData) => {
     throw error;
   }
 
-  if (!sportId) sportId = '22222222-2222-2222-2222-222222222222';
+  // The browser only knows a sport name. Resolve its real database UUID here
+  // instead of relying on hardcoded seed IDs.
+  if (sport) sportId = await matchesRepo.findSportIdByName(sport);
+  if (!sportId) {
+    const error = new Error('Please select a valid sport.');
+    error.statusCode = 422;
+    error.code = 'INVALID_SPORT';
+    throw error;
+  }
   if (!locationName) locationName = 'Gachibowli Indoor Sports Complex';
   if (!scheduledAt) scheduledAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
   if (!capacity) capacity = 4;

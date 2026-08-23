@@ -3,7 +3,7 @@ import { sendSuccess } from '../../utils/response.js';
 
 export const createMatch = async (req, res, next) => {
   try {
-    const creatorId = req.user?.athleteId || req.user?.id || 'ed3e0581-b173-4e21-b2c8-6707d96b3ad2';
+    const creatorId = req.user.athleteId;
     const match = await matchesService.createMatchService(creatorId, req.body);
     return sendSuccess(res, { match }, 'Match lobby created successfully.', 201);
   } catch (error) {
@@ -31,7 +31,7 @@ export const findRadarMatches = async (req, res, next) => {
 
 export const joinMatch = async (req, res, next) => {
   try {
-    const athleteId = req.user?.athleteId || req.user?.id || 'ed3e0581-b173-4e21-b2c8-6707d96b3ad2';
+    const athleteId = req.user.athleteId;
     const updatedMatch = await matchesService.joinMatchService(req.params.id, athleteId);
     return sendSuccess(res, { match: updatedMatch }, 'Joined match lobby successfully.');
   } catch (error) {
@@ -41,7 +41,7 @@ export const joinMatch = async (req, res, next) => {
 
 export const leaveMatch = async (req, res, next) => {
   try {
-    const athleteId = req.user?.athleteId || req.user?.id || 'ed3e0581-b173-4e21-b2c8-6707d96b3ad2';
+    const athleteId = req.user.athleteId;
     const result = await matchesService.leaveMatchService(req.params.id, athleteId);
     return sendSuccess(res, result, 'Left match lobby.');
   } catch (error) {
