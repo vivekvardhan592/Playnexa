@@ -1,8 +1,6 @@
-import { ATHLETES, MATCHES, EVENTS, TEAMS, POSTS, CONVERSATIONS, NOTIFICATIONS } from '../data/mockData.js';
-
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-// Helper for HTTP requests with HttpOnly cookies credentials
+// Helper for HTTP requests with HttpOnly cookies credentials — STRICT BACKEND DIRECT CALLS
 async function fetchAPI(endpoint, options = {}) {
   try {
     const res = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -25,49 +23,42 @@ async function fetchAPI(endpoint, options = {}) {
 
     return json.data || json;
   } catch (error) {
-    // Re-throw errors with statusCode (real backend errors)
-    if (error.statusCode) throw error;
-    // Network errors — fall through to mock data
-    console.warn(`[API Notice]: Endpoint ${endpoint} fallback active (${error.message})`);
-    return null;
+    console.error(`[Backend API Error]: ${endpoint}`, error.message);
+    throw error;
   }
 }
 
 // === Auth Services ===
 export async function apiLogin(email, password) {
-  const result = await fetchAPI('/auth/login', {
+  return await fetchAPI('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });
-  return result;
 }
 
 export async function apiRegister(data) {
-  const result = await fetchAPI('/auth/register', {
+  return await fetchAPI('/auth/register', {
     method: 'POST',
     body: JSON.stringify(data),
   });
-  return result;
 }
 
 export async function apiForgotPassword(email) {
-  const result = await fetchAPI('/auth/forgot-password', {
+  return await fetchAPI('/auth/forgot-password', {
     method: 'POST',
     body: JSON.stringify({ email }),
   });
-  return result || { success: true, message: `Password reset verification code sent to ${email}` };
 }
 
 export async function apiResetPassword(email, otpCode, newPassword) {
-  const result = await fetchAPI('/auth/reset-password', {
+  return await fetchAPI('/auth/reset-password', {
     method: 'POST',
     body: JSON.stringify({ email, otpCode, newPassword }),
   });
-  return result || { success: true, message: 'Password reset successfully!' };
 }
 
 export async function apiLogout() {
-  await fetchAPI('/auth/logout', { method: 'POST' });
+  return await fetchAPI('/auth/logout', { method: 'POST' });
 }
 
 export async function apiGetProfile() {
@@ -85,21 +76,11 @@ export async function getAthletes(filters = {}) {
   if (filters.limit) params.set('limit', filters.limit);
 
   const apiData = await fetchAPI(`/v1/discovery/athletes?${params.toString()}`);
-  if (apiData && apiData.athletes) return apiData.athletes;
-
-  // Fallback to mock data
-  let results = [...ATHLETES];
-  if (filters.sport && filters.sport !== 'All') results = results.filter((a) => a.sports.some((s) => s.sport === filters.sport));
-  if (filters.skill && filters.skill !== 'All') results = results.filter((a) => a.sports.some((s) => s.skillLevel === filters.skill));
-  if (filters.maxDistance) results = results.filter((a) => a.distanceKm <= filters.maxDistance);
-  results.sort((a, b) => b.matchScore - a.matchScore);
-  return results;
+  return apiData?.athletes || [];
 }
 
 export async function getAthleteById(id) {
-  const apiData = await fetchAPI(`/v1/athletes/${id}`);
-  if (apiData) return apiData;
-  return ATHLETES.find((a) => a.id === id) || ATHLETES[0];
+  return await fetchAPI(`/v1/athletes/${id}`);
 }
 
 // === Matches Services (Phase 6 Backend) ===
@@ -112,18 +93,12 @@ export async function getMatches(filters = {}) {
   if (filters.status) params.set('status', filters.status);
 
   const apiData = await fetchAPI(`/v1/matches/radar?${params.toString()}`);
-  if (apiData && apiData.matches) return apiData.matches;
-
-  // Fallback to mock
-  let results = [...MATCHES];
-  if (filters.sport && filters.sport !== 'All') results = results.filter((m) => m.sport === filters.sport);
-  return results;
+  return apiData?.matches || [];
 }
 
 export async function getMatchById(id) {
   const apiData = await fetchAPI(`/v1/matches/${id}`);
-  if (apiData && apiData.match) return apiData.match;
-  return MATCHES.find((m) => m.id === id) || MATCHES[0];
+  return apiData?.match || apiData;
 }
 
 export async function createMatch(data) {
@@ -131,86 +106,29 @@ export async function createMatch(data) {
     method: 'POST',
     body: JSON.stringify(data),
   });
-  if (apiData && apiData.match) return apiData.match;
-
-  // Fallback mock
-  const newMatch = {
-    id: `match_${Date.now()}`,
-    ...data,
-    status: 'OPEN',
-    currentPlayers: 1,
-    participants: [{ id: 'user_1', name: 'Vivek Kumar', avatar: '/athlete_rahul.jpg', verified: true }],
-    creator: { id: 'user_1', name: 'Vivek Kumar', avatar: '/athlete_rahul.jpg', verified: true },
-    creator_id: 'user_1',
-  };
-  MATCHES.unshift(newMatch);
-  return newMatch;
+  return apiData?.match || apiData;
 }
 
 export async function joinMatch(matchId) {
   const apiData = await fetchAPI(`/v1/matches/${matchId}/join`, { method: 'POST' });
-  if (apiData && apiData.match) return apiData.match;
-
-  // Fallback mock — strictly prevent duplicate joins by the same athlete
-  const match = MATCHES.find((m) => m.id === matchId);
-  if (match) {
-    const userAthleteId = 'user_1';
-    const alreadyJoined = (match.participants || []).some(
-      (p) => String(p.id || p.athlete_id) === String(userAthleteId)
-    );
-
-    if (alreadyJoined) {
-      const err = new Error('You have already joined this match lobby.');
-      err.statusCode = 409;
-      err.code = 'DUPLICATE_PARTICIPANT';
-      throw err;
-    }
-
-    if (match.currentPlayers < match.maxPlayers) {
-      match.currentPlayers += 1;
-      match.participants = match.participants || [];
-      match.participants.push({ id: userAthleteId, name: 'Vivek Kumar', avatar: '/athlete_rahul.jpg', verified: true });
-      if (match.currentPlayers === match.maxPlayers) match.status = 'FULL';
-    }
-  }
-  return match;
+  return apiData?.match || apiData;
 }
 
 export async function leaveMatch(matchId) {
-  const apiData = await fetchAPI(`/v1/matches/${matchId}/leave`, { method: 'POST' });
-  if (apiData) return apiData;
-
-  // Fallback mock
-  const match = MATCHES.find((m) => m.id === matchId);
-  if (match) {
-    const userAthleteId = 'user_1';
-    match.participants = (match.participants || []).filter(
-      (p) => String(p.id || p.athlete_id) !== String(userAthleteId)
-    );
-    match.currentPlayers = Math.max(1, match.currentPlayers - 1);
-    if (match.currentPlayers < match.maxPlayers && match.status === 'FULL') {
-      match.status = 'OPEN';
-    }
-  }
-  return match;
+  return await fetchAPI(`/v1/matches/${matchId}/leave`, { method: 'POST' });
 }
 
 // === Chat Services (Phase 7 Backend) ===
 export async function getConversations() {
   const apiData = await fetchAPI('/v1/chat/conversations');
-  if (apiData && apiData.conversations) return apiData.conversations;
-
-  // Fallback to mock
-  return [...CONVERSATIONS];
+  return apiData?.conversations || [];
 }
 
 export async function startConversation(otherAthleteId) {
-  const apiData = await fetchAPI('/v1/chat/conversations', {
+  return await fetchAPI('/v1/chat/conversations', {
     method: 'POST',
     body: JSON.stringify({ otherAthleteId }),
   });
-  if (apiData && apiData.conversationId) return apiData.conversationId;
-  return { conversationId: `conv_${Date.now()}` };
 }
 
 export async function getMessageHistory(conversationId, { limit = 50, before = null } = {}) {
@@ -219,48 +137,32 @@ export async function getMessageHistory(conversationId, { limit = 50, before = n
   if (before) params.set('before', before);
 
   const apiData = await fetchAPI(`/v1/chat/conversations/${conversationId}/messages?${params.toString()}`);
-  if (apiData && apiData.messages) return apiData.messages;
-  return [];
+  return apiData?.messages || [];
 }
 
 export async function sendMessage(convId, text) {
-  const apiData = await fetchAPI('/chat/send', {
+  return await fetchAPI('/v1/chat/send', {
     method: 'POST',
-    body: JSON.stringify({ text, receiverName: 'Rahul S.', sport: 'Badminton' }),
+    body: JSON.stringify({ conversationId: convId, content: text }),
   });
-
-  const conv = CONVERSATIONS.find((c) => c.id === convId);
-  if (conv) {
-    const msg = { id: Date.now(), sender: 'Vivek', text, time: 'Just now', isOwn: true };
-    conv.messages.push(msg);
-    conv.lastMessage = text;
-    conv.timestamp = 'Just now';
-    return msg;
-  }
-  return null;
 }
 
 // === Events Services ===
 export async function getEvents() {
   const apiData = await fetchAPI('/v1/events');
-  if (apiData && apiData.events) return apiData.events;
-  return [...EVENTS];
+  return apiData?.events || [];
 }
 
 export async function getEventById(id) {
-  return EVENTS.find((e) => e.id === id) || EVENTS[0];
+  return await fetchAPI(`/v1/events/${id}`);
 }
 
 export async function registerForEvent(eventId) {
-  const apiData = await fetchAPI(`/v1/events/${eventId}/register`, { method: 'POST' });
-  if (apiData) return apiData;
-  return { success: true, registered: true };
+  return await fetchAPI(`/v1/events/${eventId}/register`, { method: 'POST' });
 }
 
 export async function leaveEvent(eventId) {
-  const apiData = await fetchAPI(`/v1/events/${eventId}/leave`, { method: 'POST' });
-  if (apiData) return apiData;
-  return { success: true, registered: false };
+  return await fetchAPI(`/v1/events/${eventId}/leave`, { method: 'POST' });
 }
 
 export async function updateAthleteProfile(data) {
@@ -268,22 +170,19 @@ export async function updateAthleteProfile(data) {
     method: 'PATCH',
     body: JSON.stringify(data),
   });
-  if (apiData && apiData.athlete) return apiData.athlete;
-  return data;
+  return apiData?.athlete || apiData;
 }
 
 // === Teams Services ===
 export async function getTeams() {
   const apiData = await fetchAPI('/v1/teams');
-  if (apiData && apiData.teams) return apiData.teams;
-  return [...TEAMS];
+  return apiData?.teams || [];
 }
 
 // === Community Services ===
 export async function getCommunityPosts() {
   const apiData = await fetchAPI('/v1/community/feed');
-  if (apiData && apiData.posts) return apiData.posts;
-  return [...POSTS];
+  return apiData?.posts || [];
 }
 
 export async function createCommunityPost(content) {
@@ -291,13 +190,11 @@ export async function createCommunityPost(content) {
     method: 'POST',
     body: JSON.stringify({ content }),
   });
-  if (apiData && apiData.post) return apiData.post;
-  return null;
+  return apiData?.post || apiData;
 }
 
 // === Notifications Services ===
 export async function getNotifications() {
   const apiData = await fetchAPI('/v1/notifications');
-  if (apiData && apiData.notifications) return apiData.notifications;
-  return [...NOTIFICATIONS];
+  return apiData?.notifications || [];
 }
